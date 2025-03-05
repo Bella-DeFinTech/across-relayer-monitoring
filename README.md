@@ -3,12 +3,52 @@
 ## Tests
 ```bash 
 # Run all tests
-pytest -v
+tox -e lint # check linting
+tox -e format # check formatting
+tox -e coverage # measure coverage
 
-# Run specific test
-python -m pytest tests/test_init_db.py -v
-python -m pytest tests/test_discover_routes.py -v
+# pytest
+pytest tests # run tests
+
+# ruff 
+ruff format --check # check formatting
+ruff format # fix formatting 
+ruff check # check linting
+ruff check --fix # fix linting
+ruff check --fix --unsafe-fixes # fix linting with unsafe fixes
+
+
 ```
+
+# RUOSHAN UPDATE REQUESTS
+
+`token price table`
+- eliminate state / variable table. 
+
+`bundle returns .xlsx`
+- include output amount.
+- for a bundles start and end time/block:
+  - have to subtract the succuseful TX gas cost, 
+  - Also compute unsuccestful TX gas cost.  
+
+So the actual profit = return amount - output amount - gas cost. (lp fee deduction is already indlude in the retun amount so not needed here.)
+return amount is in token, gas cost is in ETH. 
+Need to convert everything together at some point. But need to have all three fields.
+- output amount
+- gas cost of successful tx (bundle)
+- gas cost of unsuccessful tx (bundle)
+`Only query tx of the (fillRelay) method`
+- neet to include historical and current forms of fillRelay data.
+
+`relayer_daily_profit.xlsx`
+right now everything is being refunded on the destination chain. 
+
+
+- from now on, refund strategy will always be on destination chain. from the time the program was restarted 3/2/25
+- So we can calculate the overhead using the official fee calculation with API. So always include that in the overrhead calculation. For historical data. 
+- 
+
+
 
 
 ## Refactor Goals 
@@ -28,7 +68,122 @@ python -m pytest tests/test_discover_routes.py -v
   - Price / Capital / APY Calculation.
 4. Implement Excel Views. 
 
+`ACTUAL NEW DB SCHEMA`
+## ACTUAL NEW DB SCHEMA
+```sql
+CREATE TABLE Chain (
+    chain_id TEXT PRIMARY KEY,              -- e.g., 'eth', 'base', 'arb', 'op'
+    name TEXT NOT NULL                      -- Human-readable name
+);
+
+CREATE TABLE Token (
+    token_address TEXT NOT NULL,
+    chain_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,                   -- Token symbol (USDC, WETH, etc.)
+    decimals INTEGER NOT NULL,              -- Number of decimals for the token
+    PRIMARY KEY (token_address, chain_id),
+    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+);
+
+CREATE TABLE Route (
+    route_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin_chain_id TEXT NOT NULL,
+    destination_chain_id TEXT NOT NULL,
+    input_token TEXT NOT NULL,            -- Token contract address (output token address)
+    output_token TEXT NOT NULL,            -- Token contract address (input token address)
+    input_token_symbol TEXT NOT NULL,                    -- Token symbol (USDC, WETH, etc.)
+    output_token_symbol TEXT NOT NULL,                    -- Token symbol (USDC, WETH, etc.)
+    input_token_decimals INTEGER NOT NULL,               -- Token decimal places
+    output_token_decimals INTEGER NOT NULL,               -- Token decimal places
+    discovery_timestamp INTEGER NOT NULL,   -- When this route was first discovered
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (origin_chain_id) REFERENCES Chain(chain_id),
+    FOREIGN KEY (destination_chain_id) REFERENCES Chain(chain_id),
+    FOREIGN KEY (token_address, origin_chain_id) REFERENCES Token(token_address, chain_id),
+    UNIQUE(origin_chain_id, destination_chain_id, token_address)
+);
+```
+
+```bash
+# FILLRELAY FUNCTION
+Function: fillRelay((bytes32,bytes32,bytes32,bytes32,bytes32,uint256,uint256,uint256,uint256,uint32,uint32,bytes), uint256, bytes32)
+#	Name	Type	Data
+0	relayData.depositor	bytes32	0x000000000000000000000000236570e2749f744cc21612e9666d076b43a3e273
+0	relayData.recipient	bytes32	0x000000000000000000000000236570e2749f744cc21612e9666d076b43a3e273
+0	relayData.exclusiveRelayer	bytes32	0x0000000000000000000000000000000000000000000000000000000000000000
+0	relayData.inputToken	bytes32	0x000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
+0	relayData.outputToken	bytes32	0x000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e5831
+0	relayData.inputAmount	uint256	38714658
+0	relayData.outputAmount	uint256	38706642
+0	relayData.originChainId	uint256	1
+0	relayData.depositId	uint256	2352238
+0	relayData.fillDeadline	uint32	1741149864
+0	relayData.exclusivityDeadline	uint32	0
+0	relayData.message	bytes	0x
+2	repaymentChainId	uint256	42161
+3	repaymentAddress	bytes32	0x00000000000000000000000084a36d2c3d2078c560ff7b62815138a16671b549
+More Details:
+Click to show less
+```
+```sql
+CREATE TABLE FILL (
+    tx_hash TEXT PRIMARY KEY,                       -- Transaction hash
+    is_success BOOLEAN DEFAULT TRUE,                -- Transaction success status
+    route_id INTEGER NOT NULL,                      -- Reference to Route
+    depositor TEXT NOT NULL,                        -- User who made the deposit
+    recipient TEXT NOT NULL,                        -- User who receives the funds
+    exclusive_relayer TEXT NOT NULL,               -- Address of the exclusive relayer 
+    input_token TEXT NOT NULL,                      -- Token address on origin chain
+    output_token TEXT NOT NULL,                     -- Token address on destination chain
+    input_amount TEXT NOT NULL,                     -- Amount received on origin chain (in smallest unit)
+    output_amount TEXT NOT NULL,                    -- Amount sent to user on destination chain (in smallest unit)
+    origin_chain_id TEXT NOT NULL,                  -- Chain where funds originated
+    destination_chain_id TEXT NOT NULL,             -- Chain where funds are sent
+    deposit_id TEXT NOT NULL,                       -- Unique deposit ID from protocol
+    fill_deadline INTEGER,                          -- Deadline for filling the relay
+    exclusivity_deadline INTEGER,                   -- Deadline for exclusive relay
+    message TEXT,                                   -- Any message included with the relay
+    repayment_chain_id TEXT,                        -- Chain where funds are repaid
+    repayment_address TEXT,                         -- Address where funds are repaid
+    gas_cost TEXT,                                  -- Gas spent on transaction (in wei)
+    gas_price TEXT,                                 -- Gas price used for transaction
+    block_number INTEGER NOT NULL,                  -- Block where tx was confirmed
+    tx_timestamp INTEGER NOT NULL,                     -- Transaction timestamp
+    lp_fee TEXT,                                    -- LP fee charged by protocol
+    bundle_id TEXT,                                 -- Bundle ID this fill belongs to (NOT USED)
+    is_return BOOLEAN DEFAULT FALSE,                -- Whether this fill is a return (NOT USED)
+    FOREIGN KEY (route_id) REFERENCES Route(route_id),
+    FOREIGN KEY (repayment_chain_id) REFERENCES Chain(chain_id)
+);
+
+CREATE TABLE Fill (
+    tx_hash TEXT PRIMARY KEY,
+    route_id INTEGER NOT NULL,
+    input_token TEXT NOT NULL,
+    output_token TEXT NOT NULL,
+    input_amount TEXT NOT NULL,             -- Amount received on origin chain
+    output_amount TEXT NOT NULL,            -- Amount sent to user on destination chain
+    is_success BOOLEAN DEFAULT TRUE,
+    gas TEXT,
+    deposit_id TEXT,
+    timestamp INTEGER NOT NULL,
+    block INTEGER NOT NULL,
+    bundle_id TEXT,
+    lp_fee TEXT,
+    repayment_chain_id TEXT,
+    FOREIGN KEY (route_id) REFERENCES Route(route_id),
+    FOREIGN KEY (repayment_chain_id) REFERENCES Chain(chain_id)
+);
+
+
+
+
+```
+
+
+
 ## New DB Schema 
+
 ### Core Tables 
 
 ```sql
@@ -123,7 +278,15 @@ python -m pytest tests/test_discover_routes.py -v
        value TEXT NOT NULL,                           -- State value
        updated_at INTEGER NOT NULL                    -- When state was last updated
    )
+
+
+
 ```
+
+
+## Order of operations 
+- first step, calculate from program restart date (2025)
+- later, let's see if we can compute from the beginning.
 
 
 ## Program Flow 

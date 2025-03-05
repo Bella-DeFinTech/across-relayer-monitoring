@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "relayer_refactor"
+version = "0.1.0"
+description = "ARPA relayer monitoring system"
+authors = [
+    {name = "ARPA Team"}
+]
+requires-python = ">=3.9"
+dependencies = [
+    "web3",
+    "requests",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "tox>=4.6.0",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/ARPA-Network/relayer_refactor"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+exclude = [
+    ".git",
+    ".tox",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "NPY"]
+ignore = ["E501"]
