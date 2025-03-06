@@ -11,7 +11,13 @@ from typing import Any, Dict, List
 import requests
 from web3 import Web3
 
-from config import CHAINS, FILL_RELAY_METHOD_ID, RELAYER_ADDRESS, chain_id_to_name
+from config import (
+    CHAINS,
+    DB_FILE,
+    FILL_RELAY_METHOD_ID,
+    RELAYER_ADDRESS,
+    chain_id_to_name,
+)
 
 # Define paths to ABI files
 ABI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "abi")
@@ -40,7 +46,8 @@ contracts = {}
 def get_db_connection():
     """Get a connection to the SQLite database."""
     try:
-        conn = sqlite3.connect("routes.db")
+        db_file_path = os.path.join(os.path.dirname(__file__), DB_FILE)
+        conn = sqlite3.connect(db_file_path)
         cursor = conn.cursor()
 
         # Create tables if they don't exist
@@ -181,29 +188,36 @@ def insert_token_info_into_db(
             print("Warning: Could not establish database connection")
             return
 
+        # Collect unique tokens by address
+        unique_tokens = {}
+        for route in routes:
+            # Add input token
+            unique_tokens[route["input_token"]] = {
+                "address": route["input_token"],
+                "chain_id": route["origin_chain_id"],
+                "symbol": route.get("input_token_symbol"),
+                "decimals": route.get("input_token_decimals"),
+            }
+
+            # Add output token
+            unique_tokens[route["output_token"]] = {
+                "address": route["output_token"],
+                "chain_id": route["destination_chain_id"],
+                "symbol": route.get("output_token_symbol"),
+                "decimals": route.get("output_token_decimals"),
+            }
+
         new_tokens = 0
         existing_tokens = 0
 
-        for route in routes:
-            # Insert input token
+        # Insert unique tokens into database
+        for token in unique_tokens.values():
             if insert_token(
                 conn,
-                route["input_token"],
-                route["origin_chain_id"],
-                route.get("input_token_symbol"),
-                route.get("input_token_decimals"),
-            ):
-                new_tokens += 1
-            else:
-                existing_tokens += 1
-
-            # Insert output token
-            if insert_token(
-                conn,
-                route["output_token"],
-                route["destination_chain_id"],
-                route.get("output_token_symbol"),
-                route.get("output_token_decimals"),
+                token["address"],
+                token["chain_id"],
+                token["symbol"],
+                token["decimals"],
             ):
                 new_tokens += 1
             else:
