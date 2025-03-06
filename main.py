@@ -15,6 +15,7 @@ This script orchestrates the entire process flow, including:
 import logging
 import sys
 
+from src.collect_fills import collect_fills
 from src.discover_routes import discover_routes
 from src.init_db import init_db
 
@@ -38,6 +39,9 @@ def main():
         # Discover routes and update the database
         logger.info("Discovering routes")
         discover_routes()
+
+        logger.info("Collecting fills")
+        collect_fills()
 
         # TODO: Add other process steps here as they are implemented
         # - Fill collection

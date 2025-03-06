@@ -28,7 +28,7 @@ BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
-# Chain configurations
+# Chain configurations  (3/1/25 blocks for now)
 CHAINS = [
     {
         "chain_id": 1,
@@ -37,6 +37,7 @@ CHAINS = [
         "rpc_url": os.getenv("ETH_RPC"),
         "api_key": os.getenv("ETH_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ETH_SPOKE_POOL_ADDRESS"),
+        "start_block": 21950406,  # The block of the first fill on this chain you want to start monitoring from
     },
     {
         "chain_id": 10,
@@ -45,6 +46,7 @@ CHAINS = [
         "rpc_url": os.getenv("OP_RPC"),
         "api_key": os.getenv("OP_SCAN_KEY"),
         "spoke_pool_address": os.getenv("OP_SPOKE_POOL_ADDRESS"),
+        "start_block": 132848581,  # The block of the first fill on this chain you want to start monitoring from
     },
     {
         "chain_id": 42161,
@@ -53,6 +55,7 @@ CHAINS = [
         "rpc_url": os.getenv("ARB_RPC"),
         "api_key": os.getenv("ARB_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ARB_SPOKE_POOL_ADDRESS"),
+        "start_block": 311048309,  # The block of the first fill on this chain you want to start monitoring from
     },
     {
         "chain_id": 8453,
@@ -61,6 +64,7 @@ CHAINS = [
         "rpc_url": os.getenv("BASE_RPC"),
         "api_key": os.getenv("BASE_SCAN_KEY"),
         "spoke_pool_address": os.getenv("BASE_SPOKE_POOL_ADDRESS"),
+        "start_block": 27011711,  # The block of the first fill on this chain you want to start monitoring from
     },
 ]
 
