@@ -1,129 +1,321 @@
-"""
-Unit tests for the route discovery module.
+"""Unit tests for the discover_routes module.
+
+Test cases:
+1. Contract initialization works correctly
+2. Token information can be retrieved
+3. Routes can be discovered
+4. Database operations work as expected
+5. Duplicate entries are handled properly
+6. Error conditions are handled gracefully
+
 """
 
-import json
-import unittest
+import sqlite3
 from unittest.mock import MagicMock, patch
 
-from web3 import Web3
+import pytest
 
-# Import from parent directory
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db_utils import check_and_insert_token, route_exists, insert_route
+from discover_routes import (
+    get_fill_routes,
+    get_token_info,
+    initialize_contracts,
+    insert_routes_into_db,
+    insert_token_info_into_db,
+)
 
 
-class TestDiscoverRoutes(unittest.TestCase):
-    """Test cases for the route discovery module."""
+# Test data fixtures
+@pytest.fixture
+def mock_chain_data():
+    return {
+        "chain_id": 1,
+        "name": "Ethereum",
+        "rpc_url": "https://eth.example.com",
+        "explorer_api_url": "https://api.etherscan.io/api",
+        "api_key": "test_key",
+        "spoke_pool_address": "0x1234567890123456789012345678901234567890",
+    }
 
-    @patch("discover_routes.get_spoke_pool")
-    @patch("discover_routes.requests.get")
-    def test_scan_chain_for_routes(self, mock_get, mock_get_spoke_pool):
-        """Test scanning a chain for routes."""
-        # Import here to avoid circular import
-        from discover_routes import discover_routes
-        
-        # Mock get_spoke_pool
+
+@pytest.fixture
+def mock_token_data():
+    return {
+        "address": "0x2222222222222222222222222222222222222222",
+        "name": "Test Token",
+        "symbol": "TEST",
+        "decimals": 18,
+    }
+
+
+@pytest.fixture
+def mock_route_data():
+    return {
+        "origin_chain_id": 1,
+        "origin_chain_name": "Ethereum",
+        "destination_chain_id": 2,
+        "destination_chain_name": "Optimism",
+        "input_token": "0x3333333333333333333333333333333333333333",
+        "input_token_symbol": "INPUT",
+        "input_token_name": "Input Token",
+        "input_token_decimals": 18,
+        "output_token": "0x4444444444444444444444444444444444444444",
+        "output_token_symbol": "OUTPUT",
+        "output_token_name": "Output Token",
+        "output_token_decimals": 18,
+    }
+
+
+@pytest.fixture
+def mock_transaction_data():
+    return {
+        "hash": "0x1234",
+        "methodId": "0x12345678",
+        "input": "0x...",  # Mock transaction input data
+        "isError": "0",
+    }
+
+
+@pytest.fixture
+def test_db():
+    """Create a temporary in-memory SQLite database for testing."""
+    conn = sqlite3.connect(":memory:")
+    cursor = conn.cursor()
+
+    # Create the necessary tables
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT NOT NULL,
+            chain_id TEXT NOT NULL,
+            symbol TEXT,
+            decimals INTEGER,
+            UNIQUE(address, chain_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS routes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            origin_chain_id TEXT NOT NULL,
+            destination_chain_id TEXT NOT NULL,
+            input_token TEXT NOT NULL,
+            output_token TEXT NOT NULL,
+            token_symbol TEXT,
+            UNIQUE(origin_chain_id, destination_chain_id, input_token, output_token)
+        )
+    """)
+
+    conn.commit()
+    yield conn
+    conn.close()
+
+
+# Test contract initialization
+def test_initialize_contracts(mock_chain_data):
+    with (
+        patch("discover_routes.CHAINS", [mock_chain_data]),
+        patch("discover_routes.Web3") as mock_web3,
+        patch("discover_routes.SPOKE_POOL_ABI", [{"some": "abi"}]),
+        patch("discover_routes.contracts", {}),
+    ):
+        # Create mock objects
+        mock_eth = MagicMock()
+        mock_web3.return_value.eth = mock_eth
+        mock_web3.HTTPProvider.return_value = MagicMock()
+        mock_web3.to_checksum_address.return_value = mock_chain_data[
+            "spoke_pool_address"
+        ]
+
+        initialize_contracts()
+
+        mock_web3.HTTPProvider.assert_called_once_with(mock_chain_data["rpc_url"])
+        mock_eth.contract.assert_called_once_with(
+            address=mock_chain_data["spoke_pool_address"], abi=[{"some": "abi"}]
+        )
+
+
+# Test token info retrieval
+def test_get_token_info(mock_chain_data, mock_token_data):
+    with (
+        patch("discover_routes.CHAINS", [mock_chain_data]),
+        patch("discover_routes.Web3") as mock_web3,
+        patch("discover_routes.ERC20_ABI", [{"some": "abi"}]),
+    ):
+        # Create mock objects for contract functions
+        mock_name_func = MagicMock()
+        mock_name_func.call.return_value = mock_token_data["name"]
+
+        mock_symbol_func = MagicMock()
+        mock_symbol_func.call.return_value = mock_token_data["symbol"]
+
+        mock_decimals_func = MagicMock()
+        mock_decimals_func.call.return_value = mock_token_data["decimals"]
+
+        # Create mock contract with functions
+        mock_functions = MagicMock()
+        mock_functions.name.return_value = mock_name_func
+        mock_functions.symbol.return_value = mock_symbol_func
+        mock_functions.decimals.return_value = mock_decimals_func
+
         mock_contract = MagicMock()
-        mock_get_spoke_pool.return_value = mock_contract
-        
-        # Mock contract.decode_function_input
+        mock_contract.functions = mock_functions
+
+        # Set up Web3 mock
+        mock_eth = MagicMock()
+        mock_eth.contract.return_value = mock_contract
+        mock_web3.return_value.eth = mock_eth
+
+        mock_web3.HTTPProvider.return_value = MagicMock()
+        mock_web3.to_checksum_address.return_value = mock_token_data["address"]
+
+        result = get_token_info(mock_token_data["address"], mock_chain_data["chain_id"])
+
+        assert result["name"] == mock_token_data["name"]
+        assert result["symbol"] == mock_token_data["symbol"]
+        assert result["decimals"] == mock_token_data["decimals"]
+
+
+# Test route discovery
+def test_get_fill_routes(mock_chain_data, mock_transaction_data):
+    with (
+        patch("discover_routes.CHAINS", [mock_chain_data]),
+        patch("discover_routes.requests.get") as mock_get,
+        patch("discover_routes.contracts") as mock_contracts,
+    ):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "status": "1",
+            "result": [mock_transaction_data],
+        }
+        mock_get.return_value = mock_response
+
+        mock_contract = MagicMock()
+        mock_contracts.__getitem__.return_value = mock_contract
+
+        # Mock the decode_function_input to return expected relay data
         mock_contract.decode_function_input.return_value = (
             None,
             {
                 "relayData": {
-                    "inputToken": bytes.fromhex("000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),
-                    "outputToken": bytes.fromhex("000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e5831"),
+                    "inputToken": b"0" * 40,
+                    "outputToken": b"0" * 40,
                     "originChainId": 1,
                 }
-            }
+            },
         )
-        
-        # Mock requests.get
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "status": "1",
-            "result": [
-                {
-                    "hash": "0x123",
-                    "methodId": "0xc6c3da79",  # FILL_RELAY_METHOD_ID
-                    "isError": "0",
-                    "input": "0x..."
-                }
-            ]
-        }
-        mock_get.return_value = mock_response
-        
-        # Call discover_routes with mocked discovery part
-        with patch("discover_routes.execute_query") as mock_execute_query:
-            # Mock check_and_insert_token
-            with patch("discover_routes.check_and_insert_token") as mock_check_token:
-                mock_check_token.return_value = True
-                
-                # Mock get_token_metadata
-                with patch("discover_routes.get_token_metadata") as mock_get_metadata:
-                    mock_get_metadata.return_value = ("USDC", 6)
-                    
-                    # Run the discovery process
-                    result = discover_routes()
-                    
-                    # Verify the result
-                    self.assertGreaterEqual(result, 0)
 
-    @patch("db_utils.execute_query")
-    def test_check_and_insert_token(self, mock_execute_query):
-        """Test checking if token exists and inserting it."""
-        # Test when token doesn't exist
-        mock_execute_query.return_value = []  # No token exists
-        result = check_and_insert_token("0x123", "1", "TEST", 18)
-        self.assertTrue(result)
-        mock_execute_query.assert_called()
-        
-        # Test when token exists
-        mock_execute_query.reset_mock()
-        mock_execute_query.return_value = [{"token_address": "0x123"}]  # Token exists
-        result = check_and_insert_token("0x123", "1", "TEST", 18)
-        self.assertTrue(result)
-        # Should query but not insert
-        mock_execute_query.assert_called_once()
-
-    @patch("db_utils.execute_query")
-    def test_route_exists(self, mock_execute_query):
-        """Test checking if route exists."""
-        # Test when route exists
-        mock_execute_query.return_value = [{"route_id": 1}]
-        self.assertEqual(route_exists("1", "10", "0x123", "0x456"), 1)
-        
-        # Test when route doesn't exist
-        mock_execute_query.reset_mock()
-        mock_execute_query.return_value = []
-        self.assertIsNone(route_exists("1", "10", "0x789", "0xabc"))
-
-    @patch("db_utils.route_exists")
-    @patch("db_utils.execute_query")
-    def test_insert_route(self, mock_execute_query, mock_route_exists):
-        """Test inserting a route."""
-        # Test when route already exists
-        mock_route_exists.return_value = 5
-        self.assertEqual(insert_route("1", "10", "0x123", "0x456", "TEST"), -5)
-        
-        # Test when route doesn't exist
-        mock_route_exists.reset_mock()
-        mock_route_exists.return_value = None
-        
-        # Setup for successful insert
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.lastrowid = 10
-        mock_conn.cursor.return_value = mock_cursor
-        
-        with patch("db_utils.get_db_connection", return_value=mock_conn):
-            with patch("db_utils.check_and_insert_token") as mock_check_token:
-                mock_check_token.return_value = True
-                self.assertEqual(insert_route("1", "10", "0x789", "0xabc", "NEW"), 10)
+        routes = get_fill_routes()
+        assert isinstance(routes, list)
 
 
-if __name__ == "__main__":
-    unittest.main()
+# Database integration tests
+def test_insert_routes_into_db_with_real_db(test_db, mock_route_data):
+    """Test route insertion with a real SQLite database."""
+    routes = [mock_route_data]
+    insert_routes_into_db(routes, conn=test_db)
+
+    cursor = test_db.cursor()
+    cursor.execute("SELECT * FROM routes")
+    rows = cursor.fetchall()
+
+    assert len(rows) == 1
+    route = rows[0]
+    assert str(route[1]) == str(mock_route_data["origin_chain_id"])
+    assert str(route[2]) == str(mock_route_data["destination_chain_id"])
+    assert route[3] == mock_route_data["input_token"]
+    assert route[4] == mock_route_data["output_token"]
+
+
+def test_insert_token_info_into_db_with_real_db(test_db, mock_route_data):
+    """Test token info insertion with a real SQLite database."""
+    routes = [mock_route_data]
+    insert_token_info_into_db(routes, conn=test_db)
+
+    cursor = test_db.cursor()
+    cursor.execute("SELECT * FROM tokens")
+    rows = cursor.fetchall()
+
+    assert len(rows) == 2  # Should have both input and output tokens
+
+    # Check input token
+    input_token = next(row for row in rows if row[1] == mock_route_data["input_token"])
+    assert str(input_token[2]) == str(mock_route_data["origin_chain_id"])
+    assert input_token[3] == mock_route_data["input_token_symbol"]
+    assert input_token[4] == mock_route_data["input_token_decimals"]
+
+    # Check output token
+    output_token = next(
+        row for row in rows if row[1] == mock_route_data["output_token"]
+    )
+    assert str(output_token[2]) == str(mock_route_data["destination_chain_id"])
+    assert output_token[3] == mock_route_data["output_token_symbol"]
+    assert output_token[4] == mock_route_data["output_token_decimals"]
+
+
+def test_duplicate_route_insertion(test_db, mock_route_data):
+    """Test that duplicate routes are handled properly."""
+    routes = [mock_route_data, mock_route_data]  # Try to insert the same route twice
+    insert_routes_into_db(routes, conn=test_db)
+
+    cursor = test_db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM routes")
+    count = cursor.fetchone()[0]
+    assert count == 1  # Should only have one route despite trying to insert twice
+
+
+def test_duplicate_token_insertion(test_db, mock_route_data):
+    """Test that duplicate tokens are handled properly."""
+    routes = [mock_route_data, mock_route_data]  # Try to insert the same tokens twice
+    insert_token_info_into_db(routes, conn=test_db)
+
+    cursor = test_db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM tokens")
+    count = cursor.fetchone()[0]
+    assert (
+        count == 2
+    )  # Should only have two tokens (input and output) despite trying to insert twice
+
+
+# Test error handling
+def test_get_token_info_error_handling():
+    with (
+        patch("discover_routes.CHAINS", []),
+        patch("discover_routes.Web3") as mock_web3,
+    ):
+        mock_web3.HTTPProvider.side_effect = Exception("Connection error")
+
+        result = get_token_info("0x1234", 1)
+        assert result["name"] is None
+        assert result["symbol"] is None
+        assert result["decimals"] is None
+
+
+def test_initialize_contracts_error_handling():
+    mock_chain = {
+        "chain_id": 1,
+        "name": "Test Chain",  # Added name to fix KeyError
+        "rpc_url": "invalid_url",
+    }
+
+    with (
+        patch("discover_routes.CHAINS", [mock_chain]),
+        patch("discover_routes.SPOKE_POOL_ABI", [{"some": "abi"}]),
+        patch("discover_routes.Web3") as mock_web3,
+    ):
+        mock_web3.HTTPProvider.side_effect = Exception("Connection error")
+
+        # Should not raise an exception
+        initialize_contracts()
+
+
+def test_database_connection_error(mock_route_data):
+    """Test handling of database connection errors."""
+    with patch(
+        "discover_routes.get_db_connection",
+        side_effect=sqlite3.Error("Connection error"),
+    ):
+        routes = [mock_route_data]
+
+        # Should not raise an exception
+        insert_routes_into_db(routes)
+        insert_token_info_into_db(routes)

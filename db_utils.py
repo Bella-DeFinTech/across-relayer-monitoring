@@ -90,7 +90,9 @@ def route_exists(origin_chain_id, destination_chain_id, input_token, output_toke
 
     try:
         results = execute_query(
-            query, (origin_chain_id, destination_chain_id, input_token, output_token), fetchall=True
+            query,
+            (origin_chain_id, destination_chain_id, input_token, output_token),
+            fetchall=True,
         )
         if results and len(results) > 0:
             return results[0]["route_id"]
@@ -126,9 +128,11 @@ def insert_route(
 
     # Ensure token exists in Token table for origin chain
     insert_token(input_token, origin_chain_id, token_symbol, 6)  # Default decimals
-    
+
     # Ensure token exists in Token table for destination chain
-    insert_token(output_token, destination_chain_id, token_symbol, 6)  # Default decimals
+    insert_token(
+        output_token, destination_chain_id, token_symbol, 6
+    )  # Default decimals
 
     # Insert new route
     query = """
@@ -175,13 +179,13 @@ def insert_route(
 def insert_token(token_address, chain_id, symbol, decimals):
     """
     Insert a token into the database.
-    
+
     Args:
         token_address (str): Token address
         chain_id (str): Chain ID
         symbol (str): Token symbol
         decimals (int): Token decimals
-        
+
     Returns:
         int or None: Token ID if newly inserted, None if already existed, 0 on error
     """
@@ -189,7 +193,7 @@ def insert_token(token_address, chain_id, symbol, decimals):
     SELECT ROWID FROM Token 
     WHERE token_address = ? AND chain_id = ?
     """
-    
+
     try:
         results = execute_query(query, (token_address, chain_id), fetchall=True)
         if not results:
@@ -197,9 +201,13 @@ def insert_token(token_address, chain_id, symbol, decimals):
             INSERT INTO Token (token_address, chain_id, symbol, decimals)
             VALUES (?, ?, ?, ?)
             """
-            cursor = execute_query(insert_query, (token_address, chain_id, symbol, decimals), commit=True)
+            cursor = execute_query(
+                insert_query, (token_address, chain_id, symbol, decimals), commit=True
+            )
             token_id = cursor.lastrowid
-            logger.info(f"Inserted token {symbol} ({token_address}) on chain {chain_id}")
+            logger.info(
+                f"Inserted token {symbol} ({token_address}) on chain {chain_id}"
+            )
             return token_id
         else:
             # Return None to indicate token already existed
@@ -245,10 +253,7 @@ def get_token_info(token_address, chain_id, default_info=None):
     try:
         results = execute_query(query, (token_address, chain_id), fetchall=True)
         if results and len(results) > 0:
-            return {
-                "symbol": results[0]["symbol"],
-                "decimals": results[0]["decimals"]
-            }
+            return {"symbol": results[0]["symbol"], "decimals": results[0]["decimals"]}
         return default_info
     except sqlite3.Error as e:
         logger.error(f"Error getting token info: {e}")
@@ -269,7 +274,7 @@ def get_latest_block_for_chain(chain_id):
     SELECT MAX(block_number) as latest_block FROM Fill
     WHERE origin_chain_id = ? OR destination_chain_id = ?
     """
-    
+
     try:
         results = execute_query(query, (chain_id, chain_id), fetchall=True)
         if results and len(results) > 0 and results[0]["latest_block"] is not None:

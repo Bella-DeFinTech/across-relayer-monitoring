@@ -94,7 +94,7 @@ def chain_id_to_name(chain_id):
     Returns:
         str: Chain key (short name) or None if not found
     """
-    chain_keys = {chain['chain_id']: chain['name'] for chain in CHAINS}
+    chain_keys = {chain["chain_id"]: chain["name"] for chain in CHAINS}
     return chain_keys.get(chain_id)
 
 
