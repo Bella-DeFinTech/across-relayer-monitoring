@@ -83,10 +83,10 @@ def test_db():
 
     # Create the necessary tables
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tokens (
+        CREATE TABLE IF NOT EXISTS Token (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             address TEXT NOT NULL,
-            chain_id TEXT NOT NULL,
+            chain_id INTEGER NOT NULL,
             symbol TEXT,
             decimals INTEGER,
             UNIQUE(address, chain_id)
@@ -94,10 +94,10 @@ def test_db():
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS routes (
+        CREATE TABLE IF NOT EXISTS Route (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            origin_chain_id TEXT NOT NULL,
-            destination_chain_id TEXT NOT NULL,
+            origin_chain_id INTEGER NOT NULL,
+            destination_chain_id INTEGER NOT NULL,
             input_token TEXT NOT NULL,
             output_token TEXT NOT NULL,
             token_symbol TEXT,
@@ -215,7 +215,7 @@ def test_insert_routes_into_db_with_real_db(test_db, mock_route_data):
     insert_routes_into_db(routes, conn=test_db)
 
     cursor = test_db.cursor()
-    cursor.execute("SELECT * FROM routes")
+    cursor.execute("SELECT * FROM Route")
     rows = cursor.fetchall()
 
     assert len(rows) == 1
@@ -232,7 +232,7 @@ def test_insert_token_info_into_db_with_real_db(test_db, mock_route_data):
     insert_token_info_into_db(routes, conn=test_db)
 
     cursor = test_db.cursor()
-    cursor.execute("SELECT * FROM tokens")
+    cursor.execute("SELECT * FROM Token")
     rows = cursor.fetchall()
 
     assert len(rows) == 2  # Should have both input and output tokens
@@ -258,7 +258,7 @@ def test_duplicate_route_insertion(test_db, mock_route_data):
     insert_routes_into_db(routes, conn=test_db)
 
     cursor = test_db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM routes")
+    cursor.execute("SELECT COUNT(*) FROM Route")
     count = cursor.fetchone()[0]
     assert count == 1  # Should only have one route despite trying to insert twice
 
@@ -269,7 +269,7 @@ def test_duplicate_token_insertion(test_db, mock_route_data):
     insert_token_info_into_db(routes, conn=test_db)
 
     cursor = test_db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM tokens")
+    cursor.execute("SELECT COUNT(*) FROM Token")
     count = cursor.fetchone()[0]
     assert (
         count == 2

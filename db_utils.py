@@ -67,41 +67,6 @@ def execute_query(query, params=(), fetchall=False, commit=False):
         conn.close()
 
 
-def route_exists(origin_chain_id, destination_chain_id, input_token, output_token):
-    """
-    Check if a route already exists in the database.
-
-    Args:
-        origin_chain_id (str): Origin chain ID
-        destination_chain_id (str): Destination chain ID
-        input_token (str): Input token address
-        output_token (str): Output token address
-
-    Returns:
-        int or None: Route ID if exists, None otherwise
-    """
-    query = """
-    SELECT route_id FROM Route
-    WHERE origin_chain_id = ?
-    AND destination_chain_id = ?
-    AND input_token = ?
-    AND output_token = ?
-    """
-
-    try:
-        results = execute_query(
-            query,
-            (origin_chain_id, destination_chain_id, input_token, output_token),
-            fetchall=True,
-        )
-        if results and len(results) > 0:
-            return results[0]["route_id"]
-        return None
-    except sqlite3.Error as e:
-        logger.error(f"Error checking if route exists: {e}")
-        return None
-
-
 def insert_route(
     origin_chain_id, destination_chain_id, input_token, output_token, token_symbol
 ):
@@ -109,8 +74,8 @@ def insert_route(
     Insert a new route into the database.
 
     Args:
-        origin_chain_id (str): Origin chain ID
-        destination_chain_id (str): Destination chain ID
+        origin_chain_id (int): Origin chain ID
+        destination_chain_id (int): Destination chain ID
         input_token (str): Input token address
         output_token (str): Output token address
         token_symbol (str): Token symbol
@@ -118,59 +83,56 @@ def insert_route(
     Returns:
         int or None: Route ID if newly inserted, None if already existed, 0 on error
     """
-    # First check if route already exists
-    existing_route_id = route_exists(
-        origin_chain_id, destination_chain_id, input_token, output_token
-    )
-    if existing_route_id:
-        logger.debug(f"Route already exists with ID {existing_route_id}")
-        return None
-
-    # Ensure token exists in Token table for origin chain
-    insert_token(input_token, origin_chain_id, token_symbol, 6)  # Default decimals
-
-    # Ensure token exists in Token table for destination chain
-    insert_token(
-        output_token, destination_chain_id, token_symbol, 6
-    )  # Default decimals
-
-    # Insert new route
-    query = """
-    INSERT INTO Route (
-        origin_chain_id,
-        destination_chain_id,
-        input_token,
-        output_token,
-        token_symbol,
-        discovery_timestamp,
-        is_active
-    ) VALUES (?, ?, ?, ?, ?, ?, 1)
-    """
-
-    current_timestamp = int(datetime.now().timestamp())
-
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            query,
+        # Check if route already exists
+        exists_query = """
+        SELECT route_id FROM Route
+        WHERE origin_chain_id = ?
+        AND destination_chain_id = ?
+        AND input_token = ?
+        AND output_token = ?
+        """
+        existing_record = execute_query(
+            exists_query,
+            (int(origin_chain_id), int(destination_chain_id), input_token, output_token),
+            fetchall=True
+        )
+        if existing_record:
+            logger.debug(f"Route already exists with ID {existing_record[0]['route_id']}")
+            return None
+
+        # Insert new route
+        insert_query = """
+        INSERT INTO Route (
+            origin_chain_id,
+            destination_chain_id,
+            input_token,
+            output_token,
+            token_symbol,
+            discovery_timestamp,
+            is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, 1)
+        """
+
+        current_timestamp = int(datetime.now().timestamp())
+        cursor = execute_query(
+            insert_query,
             (
-                origin_chain_id,
-                destination_chain_id,
+                int(origin_chain_id),
+                int(destination_chain_id),
                 input_token,
                 output_token,
                 token_symbol,
                 current_timestamp,
             ),
+            commit=True
         )
         route_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
         logger.info(
             f"Inserted new route with ID {route_id}: {origin_chain_id} -> {destination_chain_id} for token {token_symbol}"
         )
         return route_id
+
     except sqlite3.Error as e:
         logger.error(f"Error inserting route: {e}")
         return 0
@@ -182,27 +144,27 @@ def insert_token(token_address, chain_id, symbol, decimals):
 
     Args:
         token_address (str): Token address
-        chain_id (str): Chain ID
+        chain_id (int): Chain ID
         symbol (str): Token symbol
         decimals (int): Token decimals
 
     Returns:
         int or None: Token ID if newly inserted, None if already existed, 0 on error
     """
-    query = """
+    exists_query = """
     SELECT ROWID FROM Token 
     WHERE token_address = ? AND chain_id = ?
     """
 
     try:
-        results = execute_query(query, (token_address, chain_id), fetchall=True)
-        if not results:
+        existing_record = execute_query(exists_query, (token_address, int(chain_id)), fetchall=True)
+        if not existing_record:
             insert_query = """
             INSERT INTO Token (token_address, chain_id, symbol, decimals)
             VALUES (?, ?, ?, ?)
             """
             cursor = execute_query(
-                insert_query, (token_address, chain_id, symbol, decimals), commit=True
+                insert_query, (token_address, int(chain_id), symbol, decimals), commit=True
             )
             token_id = cursor.lastrowid
             logger.info(
@@ -239,7 +201,7 @@ def get_token_info(token_address, chain_id, default_info=None):
 
     Args:
         token_address (str): Token address
-        chain_id (str): Chain ID
+        chain_id (int): Chain ID
         default_info (dict): Default token info if not found
 
     Returns:
@@ -251,7 +213,7 @@ def get_token_info(token_address, chain_id, default_info=None):
     """
 
     try:
-        results = execute_query(query, (token_address, chain_id), fetchall=True)
+        results = execute_query(query, (token_address, int(chain_id)), fetchall=True)
         if results and len(results) > 0:
             return {"symbol": results[0]["symbol"], "decimals": results[0]["decimals"]}
         return default_info
@@ -265,7 +227,7 @@ def get_latest_block_for_chain(chain_id):
     Get the latest processed block for a chain.
 
     Args:
-        chain_id (str): Chain ID
+        chain_id (int): Chain ID
 
     Returns:
         int: Latest block number or 0 if not found
@@ -276,7 +238,8 @@ def get_latest_block_for_chain(chain_id):
     """
 
     try:
-        results = execute_query(query, (chain_id, chain_id), fetchall=True)
+        chain_id_int = int(chain_id)
+        results = execute_query(query, (chain_id_int, chain_id_int), fetchall=True)
         if results and len(results) > 0 and results[0]["latest_block"] is not None:
             return int(results[0]["latest_block"])
         return 0

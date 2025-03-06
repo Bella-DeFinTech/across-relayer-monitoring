@@ -21,6 +21,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "coverage",
+    "mypy",
     "tox>=4.6.0",
     "ruff",
 ]
@@ -30,6 +31,11 @@ Homepage = "https://github.com/ARPA-Network/relayer_refactor"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+ignore_missing_imports = true
+files = ["*.py", "tests/**/*.py"]
+
 
 [tool.ruff]
 exclude = [

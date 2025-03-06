@@ -37,8 +37,7 @@ def main():
 
         # Discover routes and update the database
         logger.info("Discovering routes")
-        total_routes = discover_routes()
-        logger.info(f"Discovered {total_routes} routes")
+        discover_routes()
 
         # TODO: Add other process steps here as they are implemented
         # - Fill collection

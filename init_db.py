@@ -69,13 +69,13 @@ def init_db():
         # Create tables based on the new schema
         cursor.executescript("""
         CREATE TABLE IF NOT EXISTS Chain (
-            chain_id TEXT PRIMARY KEY,
+            chain_id INTEGER PRIMARY KEY,
             name TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS Token (
             token_address TEXT NOT NULL,
-            chain_id TEXT NOT NULL,
+            chain_id INTEGER NOT NULL,
             symbol TEXT NOT NULL,
             decimals INTEGER NOT NULL,
             PRIMARY KEY (token_address, chain_id),
@@ -84,8 +84,8 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS Route (
             route_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            origin_chain_id TEXT NOT NULL,
-            destination_chain_id TEXT NOT NULL,
+            origin_chain_id INTEGER NOT NULL,
+            destination_chain_id INTEGER NOT NULL,
             input_token TEXT NOT NULL,
             output_token TEXT NOT NULL,
             token_symbol TEXT NOT NULL,
@@ -109,13 +109,13 @@ def init_db():
             output_token TEXT NOT NULL,
             input_amount TEXT NOT NULL,
             output_amount TEXT NOT NULL,
-            origin_chain_id TEXT NOT NULL,
-            destination_chain_id TEXT NOT NULL,
+            origin_chain_id INTEGER NOT NULL,
+            destination_chain_id INTEGER NOT NULL,
             deposit_id TEXT NOT NULL,
             fill_deadline INTEGER,
             exclusivity_deadline INTEGER,
             message TEXT,
-            repayment_chain_id TEXT,
+            repayment_chain_id INTEGER,
             repayment_address TEXT,
             gas_cost TEXT,
             gas_price TEXT,
@@ -147,7 +147,7 @@ def init_db():
                 continue
 
             chain_data = (
-                str(chain["chain_id"]),  # Convert to string as per new schema
+                int(chain["chain_id"]),  # Store as integer
                 chain["name"],
             )
 

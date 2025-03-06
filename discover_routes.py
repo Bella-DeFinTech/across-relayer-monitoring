@@ -5,7 +5,6 @@ by analyzing the relayer's blockchain transactions.
 
 import json
 import os
-import sqlite3
 from typing import Any, Dict, List
 
 import requests
@@ -13,11 +12,11 @@ from web3 import Web3
 
 from config import (
     CHAINS,
-    DB_FILE,
     FILL_RELAY_METHOD_ID,
     RELAYER_ADDRESS,
     chain_id_to_name,
 )
+from db_utils import get_db_connection, insert_route, insert_token
 
 # Define paths to ABI files
 ABI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "abi")
@@ -43,201 +42,6 @@ except FileNotFoundError:
 contracts = {}
 
 
-def get_db_connection():
-    """Get a connection to the SQLite database."""
-    try:
-        db_file_path = os.path.join(os.path.dirname(__file__), DB_FILE)
-        conn = sqlite3.connect(db_file_path)
-        cursor = conn.cursor()
-
-        # Create tables if they don't exist
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tokens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                address TEXT NOT NULL,
-                chain_id TEXT NOT NULL,
-                symbol TEXT,
-                decimals INTEGER,
-                UNIQUE(address, chain_id)
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS routes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                origin_chain_id TEXT NOT NULL,
-                destination_chain_id TEXT NOT NULL,
-                input_token TEXT NOT NULL,
-                output_token TEXT NOT NULL,
-                token_symbol TEXT,
-                UNIQUE(origin_chain_id, destination_chain_id, input_token, output_token)
-            )
-        """)
-
-        conn.commit()
-        return conn
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-        return None
-
-
-def insert_route(conn: sqlite3.Connection, route: Dict[str, Any]) -> bool:
-    """Insert a route into the database."""
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT OR IGNORE INTO routes (
-                origin_chain_id,
-                destination_chain_id,
-                input_token,
-                output_token,
-                token_symbol
-            ) VALUES (?, ?, ?, ?, ?)
-        """,
-            (
-                str(route["origin_chain_id"]),
-                str(route["destination_chain_id"]),
-                route["input_token"],
-                route["output_token"],
-                route.get("output_token_symbol"),
-            ),
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    except sqlite3.Error as e:
-        print(f"Error inserting route: {e}")
-        return False
-
-
-def insert_token(
-    conn: sqlite3.Connection,
-    token_address: str,
-    chain_id: str,
-    symbol: str = None,
-    decimals: int = None,
-) -> bool:
-    """Insert a token into the database."""
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT OR IGNORE INTO tokens (
-                address,
-                chain_id,
-                symbol,
-                decimals
-            ) VALUES (?, ?, ?, ?)
-        """,
-            (token_address, str(chain_id), symbol, decimals),
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    except sqlite3.Error as e:
-        print(f"Error inserting token: {e}")
-        return False
-
-
-def insert_routes_into_db(
-    routes: List[Dict[str, Any]], conn: sqlite3.Connection = None
-) -> None:
-    """Insert routes into the database."""
-    should_close = False
-    try:
-        if conn is None:
-            conn = get_db_connection()
-            should_close = True
-        if not conn:
-            print("Warning: Could not establish database connection")
-            return
-
-        new_routes = 0
-        existing_routes = 0
-
-        for route in routes:
-            if insert_route(conn, route):
-                new_routes += 1
-            else:
-                existing_routes += 1
-
-        print("Route insertion summary:")
-        print(f"  - {new_routes} new routes inserted")
-        print(f"  - {existing_routes} existing routes skipped")
-        print(f"  - {new_routes + existing_routes} total unique routes processed")
-
-    except sqlite3.Error as e:
-        print(f"Database error during route insertion: {e}")
-    finally:
-        if should_close and conn:
-            try:
-                conn.close()
-            except sqlite3.Error:
-                pass
-
-
-def insert_token_info_into_db(
-    routes: List[Dict[str, Any]], conn: sqlite3.Connection = None
-) -> None:
-    """Insert token information into the database."""
-    should_close = False
-    try:
-        if conn is None:
-            conn = get_db_connection()
-            should_close = True
-        if not conn:
-            print("Warning: Could not establish database connection")
-            return
-
-        # Collect unique tokens by address
-        unique_tokens = {}
-        for route in routes:
-            # Add input token
-            unique_tokens[route["input_token"]] = {
-                "address": route["input_token"],
-                "chain_id": route["origin_chain_id"],
-                "symbol": route.get("input_token_symbol"),
-                "decimals": route.get("input_token_decimals"),
-            }
-
-            # Add output token
-            unique_tokens[route["output_token"]] = {
-                "address": route["output_token"],
-                "chain_id": route["destination_chain_id"],
-                "symbol": route.get("output_token_symbol"),
-                "decimals": route.get("output_token_decimals"),
-            }
-
-        new_tokens = 0
-        existing_tokens = 0
-
-        # Insert unique tokens into database
-        for token in unique_tokens.values():
-            if insert_token(
-                conn,
-                token["address"],
-                token["chain_id"],
-                token["symbol"],
-                token["decimals"],
-            ):
-                new_tokens += 1
-            else:
-                existing_tokens += 1
-
-        print("Token insertion summary:")
-        print(f"  - {new_tokens} new tokens inserted")
-        print(f"  - {existing_tokens} existing tokens skipped")
-        print(f"  - {new_tokens + existing_tokens} total unique tokens processed")
-
-    except sqlite3.Error as e:
-        print(f"Database error during token insertion: {e}")
-    finally:
-        if should_close and conn:
-            try:
-                conn.close()
-            except sqlite3.Error:
-                pass
-
-
 def initialize_contracts():
     """Initialize Web3 contract instances for each chain."""
     if not SPOKE_POOL_ABI:
@@ -245,9 +49,26 @@ def initialize_contracts():
         return
 
     for chain in CHAINS:
-        chain_id = chain["chain_id"]
+        # Convert chain_id to string first, then to int for safety
+        if "chain_id" not in chain or chain["chain_id"] is None:
+            print(f"Error: Missing chain_id in chain configuration: {chain}")
+            continue
+
+        chain_id_str = str(chain["chain_id"])
         try:
-            w3 = Web3(Web3.HTTPProvider(chain["rpc_url"]))
+            chain_id = int(chain_id_str)
+        except ValueError:
+            print(f"Error: Invalid chain_id in chain configuration: {chain_id_str}")
+            continue
+
+        try:
+            # Ensure RPC URL is treated as string
+            rpc_url = str(chain.get("rpc_url", ""))
+            if not rpc_url:
+                print(f"Warning: Missing or empty RPC URL for chain {chain_id}")
+                continue
+
+            w3 = Web3(Web3.HTTPProvider(rpc_url))
             spoke_pool_address = chain.get("spoke_pool_address")
 
             if not spoke_pool_address:
@@ -276,8 +97,8 @@ def get_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
     """
     try:
         chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
-        if chain and chain["rpc_url"] and ERC20_ABI:
-            w3 = Web3(Web3.HTTPProvider(chain["rpc_url"]))
+        if chain and chain.get("rpc_url") and ERC20_ABI:
+            w3 = Web3(Web3.HTTPProvider(str(chain["rpc_url"])))
             checksum_address = Web3.to_checksum_address(token_address)
             token_contract = w3.eth.contract(address=checksum_address, abi=ERC20_ABI)
 
@@ -318,7 +139,21 @@ def get_fill_routes() -> List[Dict[str, Any]]:
     unique_routes = set()  # Track unique routes
 
     for destination_chain in CHAINS:
-        destination_chain_id = destination_chain["chain_id"]
+        # Ensure chain_id is properly handled as integer
+        if "chain_id" not in destination_chain or destination_chain["chain_id"] is None:
+            print(
+                f"Error: Missing chain_id in chain configuration: {destination_chain}"
+            )
+            continue
+
+        # Convert chain_id to string first, then to int for safety
+        chain_id_str = str(destination_chain["chain_id"])
+        try:
+            destination_chain_id = int(chain_id_str)
+        except ValueError:
+            print(f"Error: Invalid chain_id in chain configuration: {chain_id_str}")
+            continue
+
         if destination_chain_id not in contracts:
             continue
 
@@ -357,7 +192,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
                         output_token = Web3.to_checksum_address(
                             relay_data["outputToken"].hex()[-40:]
                         )
-                        origin_chain_id = relay_data["originChainId"]
+                        origin_chain_id = int(relay_data["originChainId"])
 
                         # Create unique route identifier
                         route_key = f"{origin_chain_id}:{destination_chain_id}:{input_token}:{output_token}"
@@ -415,13 +250,105 @@ def get_fill_routes() -> List[Dict[str, Any]]:
     return routes
 
 
+def insert_routes_into_db(routes: List[Dict[str, Any]]) -> None:
+    """Insert routes into the database."""
+    conn = get_db_connection()
+    if not conn:
+        print("Warning: Could not establish database connection")
+        return
+
+    try:
+        new_routes = 0
+        existing_routes = 0
+
+        for route in routes:
+            result = insert_route(
+                route["origin_chain_id"],
+                route["destination_chain_id"],
+                route["input_token"],
+                route["output_token"],
+                route.get("output_token_symbol", "")
+            )
+            if result:
+                new_routes += 1
+            else:
+                existing_routes += 1
+
+        print("Route insertion summary:")
+        print(f"  - {new_routes} new routes inserted")
+        print(f"  - {existing_routes} existing routes skipped")
+        print(f"  - {new_routes + existing_routes} total unique routes processed")
+
+    except Exception as e:
+        print(f"Error during route insertion: {e}")
+    finally:
+        conn.close()
+
+
+def insert_token_into_into_db(routes: List[Dict[str, Any]]) -> None:
+    """Insert token information into the database."""
+    conn = get_db_connection()
+    if not conn:
+        print("Warning: Could not establish database connection")
+        return
+
+    try:
+        print("\nStarting token insertion process...")
+        # Collect unique tokens by address
+        unique_tokens = {}
+        for route in routes:
+            # Add input token
+            unique_tokens[route["input_token"]] = {
+                "address": route["input_token"],
+                "chain_id": route["origin_chain_id"],
+                "symbol": route.get("input_token_symbol"),
+                "decimals": route.get("input_token_decimals"),
+            }
+
+            # Add output token
+            unique_tokens[route["output_token"]] = {
+                "address": route["output_token"],
+                "chain_id": route["destination_chain_id"],
+                "symbol": route.get("output_token_symbol"),
+                "decimals": route.get("output_token_decimals"),
+            }
+
+        print(f"\nUnique tokens collected: {len(unique_tokens)}")
+
+        new_tokens = 0
+        existing_tokens = 0
+
+        # Insert unique tokens into database
+        for token in unique_tokens.values():
+            result = insert_token(
+                token["address"],
+                token["chain_id"],
+                token["symbol"],
+                token["decimals"]
+            )
+            if result:
+                new_tokens += 1
+            else:
+                existing_tokens += 1
+
+        print("\nToken insertion summary:")
+        print(f"  - {new_tokens} new tokens inserted")
+        print(f"  - {existing_tokens} existing tokens skipped")
+        print(f"  - {new_tokens + existing_tokens} total unique tokens processed")
+
+    except Exception as e:
+        print(f"Error during token insertion: {e}")
+    finally:
+        conn.close()
+
+
 def discover_routes():
     """
     Discover routes and insert them into the database.
     """
     routes = get_fill_routes()
     insert_routes_into_db(routes)
-    insert_token_info_into_db(routes)
+    insert_token_into_into_db(routes)
 
 
 if __name__ == "__main__":

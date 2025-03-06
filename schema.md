@@ -1,13 +1,12 @@
-
 ```sql
 CREATE TABLE Chain (
-    chain_id TEXT PRIMARY KEY,              -- e.g., 'eth', 'base', 'arb', 'op'
+    chain_id INTEGER PRIMARY KEY,              -- e.g., 1 (ETH), 10 (OP), 42161 (ARB), 8453 (BASE)
     name TEXT NOT NULL                      -- Human-readable name
 );
 
 CREATE TABLE Token (
     token_address TEXT NOT NULL,
-    chain_id TEXT NOT NULL,
+    chain_id INTEGER NOT NULL,
     symbol TEXT NOT NULL,                   -- Token symbol (USDC, WETH, etc.)
     decimals INTEGER NOT NULL,              -- Number of decimals for the token
     PRIMARY KEY (token_address, chain_id),
@@ -16,8 +15,8 @@ CREATE TABLE Token (
 
 CREATE TABLE Route (
     route_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin_chain_id TEXT NOT NULL,
-    destination_chain_id TEXT NOT NULL,
+    origin_chain_id INTEGER NOT NULL,
+    destination_chain_id INTEGER NOT NULL,
     input_token TEXT NOT NULL,              -- Token contract address on origin chain
     output_token TEXT NOT NULL,             -- Token contract address on destination chain
     token_symbol TEXT NOT NULL,             -- Token symbol on destination chain
@@ -41,13 +40,13 @@ CREATE TABLE Fill (
     output_token TEXT NOT NULL,                     -- Token address on destination chain
     input_amount TEXT NOT NULL,                     -- Amount received on origin chain (in smallest unit)
     output_amount TEXT NOT NULL,                    -- Amount sent to user on destination chain (in smallest unit)
-    origin_chain_id TEXT NOT NULL,                  -- Chain where funds originated
-    destination_chain_id TEXT NOT NULL,             -- Chain where funds are sent
+    origin_chain_id INTEGER NOT NULL,                  -- Chain where funds originated
+    destination_chain_id INTEGER NOT NULL,             -- Chain where funds are sent
     deposit_id TEXT NOT NULL,                       -- Unique deposit ID from protocol
     fill_deadline INTEGER,                          -- Deadline for filling the relay
     exclusivity_deadline INTEGER,                   -- Deadline for exclusive relay
     message TEXT,                                   -- Any message included with the relay
-    repayment_chain_id TEXT,                        -- Chain where funds are repaid
+    repayment_chain_id INTEGER,                        -- Chain where funds are repaid
     repayment_address TEXT,                         -- Address where funds are repaid
     gas_cost TEXT,                                  -- Gas spent on transaction (in wei)
     gas_price TEXT,                                 -- Gas price used for transaction
