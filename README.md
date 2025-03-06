@@ -1,5 +1,13 @@
 # relayer_refactor
 
+
+todo: 
+- common blockchain utils
+- have dbutils just be common utils. 
+- figure out pagination for collecting fills.
+- Should tokens happen after collecting fills? 
+
+
 ## Tests
 ```bash 
 # Run all tests

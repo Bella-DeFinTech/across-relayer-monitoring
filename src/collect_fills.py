@@ -234,7 +234,9 @@ def process_and_store_fill(tx: Dict, chain: Dict):
                     route_id,
                     Web3.to_checksum_address(relay_data["depositor"].hex()[-40:]),
                     Web3.to_checksum_address(relay_data["recipient"].hex()[-40:]),
-                    Web3.to_checksum_address(relay_data["exclusiveRelayer"].hex()[-40:]),
+                    Web3.to_checksum_address(
+                        relay_data["exclusiveRelayer"].hex()[-40:]
+                    ),
                     Web3.to_checksum_address(relay_data["inputToken"].hex()[-40:]),
                     Web3.to_checksum_address(relay_data["outputToken"].hex()[-40:]),
                     str(relay_data["inputAmount"]),
@@ -246,7 +248,11 @@ def process_and_store_fill(tx: Dict, chain: Dict):
                     relay_data.get("exclusivityDeadline"),
                     relay_data.get("message", ""),
                     decoded_input[1].get("repaymentChainId"),
-                    Web3.to_checksum_address(decoded_input[1]["repaymentAddress"].hex()[-40:]) if decoded_input[1].get("repaymentAddress") else None,
+                    Web3.to_checksum_address(
+                        decoded_input[1]["repaymentAddress"].hex()[-40:]
+                    )
+                    if decoded_input[1].get("repaymentAddress")
+                    else None,
                     str(int(tx["gasUsed"]) * int(tx["gasPrice"])),
                     tx["gasPrice"],
                     int(tx["blockNumber"]),
