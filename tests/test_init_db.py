@@ -42,12 +42,12 @@ class TestInitDb(unittest.TestCase):
         self.original_env = os.environ.copy()
 
         # Set up mock for config
-        self.config_patcher = mock.patch("init_db.CHAINS", mock_chains)
+        self.config_patcher = mock.patch("src.init_db.CHAINS", mock_chains)
         self.config_patcher.start()
 
         # Mock get_db_path to return our test path
         self.db_path_patcher = mock.patch(
-            "init_db.get_db_path", return_value=self.test_db_path
+            "src.init_db.get_db_path", return_value=self.test_db_path
         )
         self.db_path_patcher.start()
 
@@ -78,7 +78,7 @@ class TestInitDb(unittest.TestCase):
         original_mtime = os.path.getmtime(self.test_db_path)
 
         # Run init_db
-        from init_db import init_db
+        from src.init_db import init_db
 
         init_db()
 
@@ -109,7 +109,7 @@ class TestInitDb(unittest.TestCase):
     def test_creates_correct_tables(self):
         """Test that init_db creates the correct tables when database doesn't exist."""
         # Run init_db
-        from init_db import init_db
+        from src.init_db import init_db
 
         init_db()
 

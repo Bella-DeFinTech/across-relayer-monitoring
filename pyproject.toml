@@ -34,7 +34,7 @@ testpaths = ["tests"]
 
 [tool.mypy]
 ignore_missing_imports = true
-files = ["*.py", "tests/**/*.py"]
+files = ["src/**/*.py", "tests/**/*.py"]
 
 
 [tool.ruff]
@@ -45,6 +45,7 @@ exclude = [
     "build",
     "dist",
 ]
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "NPY"]

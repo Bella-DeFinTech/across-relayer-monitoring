@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for the relayer refactor project.
+Main entry point for the relayer monitoring system.
 
 This script orchestrates the entire process flow, including:
 - Database initialization
@@ -15,8 +15,8 @@ This script orchestrates the entire process flow, including:
 import logging
 import sys
 
-from discover_routes import discover_routes
-from init_db import init_db
+from src.discover_routes import discover_routes
+from src.init_db import init_db
 
 # Configure logging
 logging.basicConfig(
