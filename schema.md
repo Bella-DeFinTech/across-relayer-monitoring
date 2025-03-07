@@ -63,7 +63,7 @@ CREATE TABLE Fill (
 
 CREATE TABLE Return (
     tx_hash TEXT NOT NULL,                      -- Transaction hash of the refund event
-    chain_id INTEGER NOT NULL,                  -- Chain where return occurred (from chainId)
+    return_chain_id INTEGER NOT NULL,                  -- Chain where return occurred (from chainId)
     return_token TEXT NOT NULL,                -- Token address being returned (from l2TokenAddress)
     return_amount TEXT NOT NULL,                       -- Amount returned (from refundAmounts[i])
     root_bundle_id INTEGER NOT NULL,            -- Bundle ID from event (from rootBundleId)
@@ -74,14 +74,27 @@ CREATE TABLE Return (
     block_number INTEGER NOT NULL,              -- Block where return occurred
     tx_timestamp INTEGER NOT NULL,              -- Transaction timestamp
     PRIMARY KEY (tx_hash, return_token, refund_address),
-    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id),
-    FOREIGN KEY (return_token, chain_id) REFERENCES Token(token_address, chain_id)
+    FOREIGN KEY (return_chain_id) REFERENCES Chain(chain_id),
+    FOREIGN KEY (return_token, return_chain_id) REFERENCES Token(token_address, chain_id)
+);
+
+CREATE TABLE Bundle (
+    bundle_id INTEGER NOT NULL,             -- Bundle ID from event
+    chain_id INTEGER NOT NULL,              -- Chain where this bundle applies
+    relayer_refund_root TEXT NOT NULL,              -- Relayer refund root hash
+    start_block INTEGER NOT NULL,           -- Starting block for this bundle on this chain
+    end_block INTEGER NOT NULL,             -- Ending block for this bundle on this chain
+    processed_timestamp INTEGER,            -- When this bundle was processed
+    PRIMARY KEY (bundle_id, chain_id),
+    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
 );
 
 
 ```
 
-Table: Return
+## Return Design 
+
+Old Table: Return
 -------------
 tx_hash: TEXT       PRIMARY KEY
 output_token: TEXT       PRIMARY KEY
@@ -91,8 +104,6 @@ block: INTEGER
 time_stamp: TEXT   
 bundle_id: TEXT   
 
-
-ExecutedRelayerRefundRoot
     event ExecutedRelayerRefundRoot(
         uint256 amountToReturn,
         uint256 indexed chainId,
@@ -106,9 +117,9 @@ ExecutedRelayerRefundRoot
     );
 
 
+## Bundles Design 
 
-
-Table: Bundle
+Old Table: Bundle
 -------------
 bundle_id: TEXT       PRIMARY KEY
 refund_root: TEXT   
@@ -118,5 +129,8 @@ op_end_block: INTEGER
 arb_end_block: INTEGER  
 eth_end_block: INTEGER  
 
-
-
+    event RelayedRootBundle(
+        uint32 indexed rootBundleId, # bundle id
+        bytes32 indexed relayerRefundRoot,
+        bytes32 indexed slowRelayRoot
+    );

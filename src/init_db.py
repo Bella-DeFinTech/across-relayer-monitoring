@@ -127,6 +127,34 @@ def init_db():
             FOREIGN KEY (route_id) REFERENCES Route(route_id),
             FOREIGN KEY (repayment_chain_id) REFERENCES Chain(chain_id)
         );
+
+        CREATE TABLE IF NOT EXISTS Return (
+            tx_hash TEXT NOT NULL,
+            return_chain_id INTEGER NOT NULL,
+            return_token TEXT NOT NULL,
+            return_amount TEXT NOT NULL,
+            root_bundle_id INTEGER NOT NULL,
+            leaf_id INTEGER NOT NULL,
+            refund_address TEXT NOT NULL,
+            is_deferred BOOLEAN NOT NULL,
+            caller TEXT NOT NULL,
+            block_number INTEGER NOT NULL,
+            tx_timestamp INTEGER NOT NULL,
+            PRIMARY KEY (tx_hash, return_token, refund_address),
+            FOREIGN KEY (return_chain_id) REFERENCES Chain(chain_id),
+            FOREIGN KEY (return_token, return_chain_id) REFERENCES Token(token_address, chain_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS Bundle (
+            bundle_id INTEGER NOT NULL,
+            chain_id INTEGER NOT NULL,
+            relayer_refund_root TEXT NOT NULL,
+            start_block INTEGER NOT NULL,
+            end_block INTEGER NOT NULL,
+            processed_timestamp INTEGER,
+            PRIMARY KEY (bundle_id, chain_id),
+            FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+        );
         """)
 
         # Insert chain data

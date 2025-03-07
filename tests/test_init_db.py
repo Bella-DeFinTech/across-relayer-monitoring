@@ -145,6 +145,40 @@ class TestInitDb(unittest.TestCase):
             )
         """)
 
+        # Create Return table
+        cursor.execute("""
+            CREATE TABLE Return (
+                tx_hash TEXT NOT NULL,
+                return_chain_id INTEGER NOT NULL,
+                return_token TEXT NOT NULL,
+                return_amount TEXT NOT NULL,
+                root_bundle_id INTEGER NOT NULL,
+                leaf_id INTEGER NOT NULL,
+                refund_address TEXT NOT NULL,
+                is_deferred BOOLEAN NOT NULL,
+                caller TEXT NOT NULL,
+                block_number INTEGER NOT NULL,
+                tx_timestamp INTEGER NOT NULL,
+                PRIMARY KEY (tx_hash, return_token, refund_address),
+                FOREIGN KEY (return_chain_id) REFERENCES Chain(chain_id),
+                FOREIGN KEY (return_token, return_chain_id) REFERENCES Token(token_address, chain_id)
+            )
+        """)
+
+        # Create Bundle table
+        cursor.execute("""
+            CREATE TABLE Bundle (
+                bundle_id INTEGER NOT NULL,
+                chain_id INTEGER NOT NULL,
+                relayer_refund_root TEXT NOT NULL,
+                start_block INTEGER NOT NULL,
+                end_block INTEGER NOT NULL,
+                processed_timestamp INTEGER,
+                PRIMARY KEY (bundle_id, chain_id),
+                FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+            )
+        """)
+
         conn.commit()
         conn.close()
 
@@ -182,7 +216,15 @@ class TestInitDb(unittest.TestCase):
         # Verify expected tables were created
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
-        expected_tables = {"Chain", "Token", "Route", "Fill", "sqlite_sequence"}
+        expected_tables = {
+            "Chain",
+            "Token",
+            "Route",
+            "Fill",
+            "Return",
+            "Bundle",
+            "sqlite_sequence",
+        }
         self.assertEqual(expected_tables, tables)
 
         # Verify Chain table schema
@@ -225,6 +267,31 @@ class TestInitDb(unittest.TestCase):
         self.assertEqual(columns["block_number"], "INTEGER")
         self.assertEqual(columns["tx_timestamp"], "INTEGER")
 
+        # Verify Return table schema
+        cursor.execute("PRAGMA table_info(Return)")
+        columns = {row[1]: row[2] for row in cursor.fetchall()}
+        self.assertEqual(columns["tx_hash"], "TEXT")
+        self.assertEqual(columns["return_chain_id"], "INTEGER")
+        self.assertEqual(columns["return_token"], "TEXT")
+        self.assertEqual(columns["return_amount"], "TEXT")
+        self.assertEqual(columns["root_bundle_id"], "INTEGER")
+        self.assertEqual(columns["leaf_id"], "INTEGER")
+        self.assertEqual(columns["refund_address"], "TEXT")
+        self.assertEqual(columns["is_deferred"], "BOOLEAN")
+        self.assertEqual(columns["caller"], "TEXT")
+        self.assertEqual(columns["block_number"], "INTEGER")
+        self.assertEqual(columns["tx_timestamp"], "INTEGER")
+
+        # Verify Bundle table schema
+        cursor.execute("PRAGMA table_info(Bundle)")
+        columns = {row[1]: row[2] for row in cursor.fetchall()}
+        self.assertEqual(columns["bundle_id"], "INTEGER")
+        self.assertEqual(columns["chain_id"], "INTEGER")
+        self.assertEqual(columns["relayer_refund_root"], "TEXT")
+        self.assertEqual(columns["start_block"], "INTEGER")
+        self.assertEqual(columns["end_block"], "INTEGER")
+        self.assertEqual(columns["processed_timestamp"], "INTEGER")
+
         # Verify Chain data was inserted
         cursor.execute("SELECT chain_id, name FROM Chain ORDER BY chain_id")
         chains = cursor.fetchall()
@@ -250,7 +317,15 @@ class TestInitDb(unittest.TestCase):
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
-        expected_tables = {"Chain", "Token", "Route", "Fill", "sqlite_sequence"}
+        expected_tables = {
+            "Chain",
+            "Token",
+            "Route",
+            "Fill",
+            "Return",
+            "Bundle",
+            "sqlite_sequence",
+        }
         self.assertEqual(expected_tables, tables)
         conn.close()
 
