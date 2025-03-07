@@ -47,7 +47,7 @@ def main():
 
         # Enrich fills with deposit timestamps and LP fees
         logger.info("Enriching fills with deposit timestamps and LP fees")
-        processed, failed = enrich_fills()
+        enrich_fills()
         
         # Process returns and update the database
         # logger.info("Processing returns")
