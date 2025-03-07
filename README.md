@@ -1,5 +1,28 @@
 # relayer_refactor
 
+Across Spokepool Contract: https://github.com/across-protocol/contracts/blob/master/contracts/SpokePool.sol
+
+ExecutedRelayerRefundRoot
+    event ExecutedRelayerRefundRoot(
+        uint256 amountToReturn,
+        uint256 indexed chainId,
+        uint256[] refundAmounts,
+        uint32 indexed rootBundleId,
+        uint32 indexed leafId,
+        address l2TokenAddress,
+        address[] refundAddresses,
+        bool deferredRefunds,
+        address caller
+    );
+
+
+
+old return schema.
+
+
+- draft of proccess_returns.py
+- drft of proccess_bundles.py 
+
 
 todo: 
 - common blockchain utils

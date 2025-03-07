@@ -40,15 +40,25 @@ def main():
         logger.info("Discovering routes")
         discover_routes()
 
+        # Collect fills and update the database
         logger.info("Collecting fills")
         collect_fills()
 
-        # TODO: Add other process steps here as they are implemented
-        # - Fill collection
-        # - Return processing
-        # - Bundle processing
-        # - Metrics calculation
-        # - Report generation
+        # Process returns and update the database
+        # logger.info("Processing returns")
+        # process_returns()
+
+        # Process bundles and update the database
+        # logger.info("Processing bundles")
+        # process_bundles()
+
+        # Calculate profit metrics
+        # logger.info("Calculating profit metrics")
+        # calculate_profit_metrics()
+
+        # Generate reports
+        # logger.info("Generating reports")
+        # generate_reports()
 
         logger.info("Process completed successfully")
 

@@ -1,3 +1,5 @@
+# New Schema 
+
 ```sql
 CREATE TABLE Chain (
     chain_id INTEGER PRIMARY KEY,              -- e.g., 1 (ETH), 10 (OP), 42161 (ARB), 8453 (BASE)
@@ -59,4 +61,62 @@ CREATE TABLE Fill (
     FOREIGN KEY (repayment_chain_id) REFERENCES Chain(chain_id)
 );
 
+CREATE TABLE Return (
+    tx_hash TEXT NOT NULL,                      -- Transaction hash of the refund event
+    chain_id INTEGER NOT NULL,                  -- Chain where return occurred (from chainId)
+    return_token TEXT NOT NULL,                -- Token address being returned (from l2TokenAddress)
+    return_amount TEXT NOT NULL,                       -- Amount returned (from refundAmounts[i])
+    root_bundle_id INTEGER NOT NULL,            -- Bundle ID from event (from rootBundleId)
+    leaf_id INTEGER NOT NULL,                   -- Leaf ID from event
+    refund_address TEXT NOT NULL,               -- Address receiving refund (from refundAddresses[i])
+    is_deferred BOOLEAN NOT NULL,              -- Whether refund was deferred
+    caller TEXT NOT NULL,                       -- Address that called the refund
+    block_number INTEGER NOT NULL,              -- Block where return occurred
+    tx_timestamp INTEGER NOT NULL,              -- Transaction timestamp
+    PRIMARY KEY (tx_hash, return_token, refund_address),
+    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id),
+    FOREIGN KEY (return_token, chain_id) REFERENCES Token(token_address, chain_id)
+);
+
+
 ```
+
+Table: Return
+-------------
+tx_hash: TEXT       PRIMARY KEY
+output_token: TEXT       PRIMARY KEY
+output_amount: TEXT   
+aim_chain: TEXT       PRIMARY KEY
+block: INTEGER  
+time_stamp: TEXT   
+bundle_id: TEXT   
+
+
+ExecutedRelayerRefundRoot
+    event ExecutedRelayerRefundRoot(
+        uint256 amountToReturn,
+        uint256 indexed chainId,
+        uint256[] refundAmounts,
+        uint32 indexed rootBundleId,
+        uint32 indexed leafId,
+        address l2TokenAddress,
+        address[] refundAddresses,
+        bool deferredRefunds,
+        address caller
+    );
+
+
+
+
+Table: Bundle
+-------------
+bundle_id: TEXT       PRIMARY KEY
+refund_root: TEXT   
+chain: TEXT       PRIMARY KEY
+base_end_block: INTEGER  
+op_end_block: INTEGER  
+arb_end_block: INTEGER  
+eth_end_block: INTEGER  
+
+
+

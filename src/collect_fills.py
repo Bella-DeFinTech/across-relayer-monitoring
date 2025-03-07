@@ -135,14 +135,19 @@ def get_fill_transactions(chain: Dict, start_block: int) -> List[Dict]:
             )
             return []
 
-        # Filter for successful fillRelay transactions
+        # Filter for fillRelay transactions (both successful and failed)
         fills = [
             tx
             for tx in data.get("result", [])
-            if tx.get("methodId") == FILL_RELAY_METHOD_ID and tx.get("isError") == "0"
+            if tx.get("methodId") == FILL_RELAY_METHOD_ID
         ]
 
-        logger.info(f"Found {len(fills)} fills for {chain['name']}")
+        successful = len([tx for tx in fills if tx.get("isError") == "0"])
+        failed = len([tx for tx in fills if tx.get("isError") == "1"])
+        logger.info(
+            f"Found {len(fills)} fills for {chain['name']} "
+            f"({successful} successful, {failed} failed)"
+        )
         return fills
 
     except Exception as e:
@@ -165,9 +170,14 @@ def process_and_store_fill(tx: Dict, chain: Dict):
             logger.error(f"No contract instance for {chain['name']}")
             return
 
-        # Decode transaction input
-        decoded_input = contract.decode_function_input(tx["input"])
-        relay_data = decoded_input[1]["relayData"]
+        try:
+            # Decode transaction input - may fail for failed transactions
+            decoded_input = contract.decode_function_input(tx["input"])
+            relay_data = decoded_input[1]["relayData"]
+        except Exception as e:
+            logger.error(f"Failed to decode input for tx {tx['hash']}: {str(e)}")
+            # For failed txs where we can't decode input, we can't proceed
+            return
 
         # Get route_id
         conn = get_db_connection()
@@ -230,13 +240,11 @@ def process_and_store_fill(tx: Dict, chain: Dict):
             """,
                 (
                     tx["hash"],
-                    True,  # is_success (we filtered for successful txs)
+                    tx.get("isError") == "0",  # is_success based on transaction status
                     route_id,
                     Web3.to_checksum_address(relay_data["depositor"].hex()[-40:]),
                     Web3.to_checksum_address(relay_data["recipient"].hex()[-40:]),
-                    Web3.to_checksum_address(
-                        relay_data["exclusiveRelayer"].hex()[-40:]
-                    ),
+                    Web3.to_checksum_address(relay_data["exclusiveRelayer"].hex()[-40:]),
                     Web3.to_checksum_address(relay_data["inputToken"].hex()[-40:]),
                     Web3.to_checksum_address(relay_data["outputToken"].hex()[-40:]),
                     str(relay_data["inputAmount"]),
@@ -248,11 +256,7 @@ def process_and_store_fill(tx: Dict, chain: Dict):
                     relay_data.get("exclusivityDeadline"),
                     relay_data.get("message", ""),
                     decoded_input[1].get("repaymentChainId"),
-                    Web3.to_checksum_address(
-                        decoded_input[1]["repaymentAddress"].hex()[-40:]
-                    )
-                    if decoded_input[1].get("repaymentAddress")
-                    else None,
+                    Web3.to_checksum_address(decoded_input[1]["repaymentAddress"].hex()[-40:]) if decoded_input[1].get("repaymentAddress") else None,
                     str(int(tx["gasUsed"]) * int(tx["gasPrice"])),
                     tx["gasPrice"],
                     int(tx["blockNumber"]),
@@ -260,7 +264,8 @@ def process_and_store_fill(tx: Dict, chain: Dict):
                 ),
             )
             conn.commit()
-            # logger.info(f"Stored fill {tx['hash']} for {chain['name']}")
+            status = "successful" if tx.get("isError") == "0" else "failed"
+            logger.debug(f"Stored {status} fill {tx['hash']} for {chain['name']}")
 
         except Exception as e:
             logger.error(f"Error storing fill {tx['hash']}: {str(e)}")
