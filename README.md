@@ -2,33 +2,52 @@
 
 Across Spokepool Contract: https://github.com/across-protocol/contracts/blob/master/contracts/SpokePool.sol
 
-ExecutedRelayerRefundRoot
-    event ExecutedRelayerRefundRoot(
-        uint256 amountToReturn,
-        uint256 indexed chainId,
-        uint256[] refundAmounts,
-        uint32 indexed rootBundleId,
-        uint32 indexed leafId,
-        address l2TokenAddress,
-        address[] refundAddresses,
-        bool deferredRefunds,
-        address caller
-    );
+Across Breaking Changed: https://docs.across.to/introduction/migration-guides/migration-guide-for-non-evm-and-prefills/breaking-changes-for-relayers
+
+## return and bundle
+
+Bundle Table Updates
+The Bundle table is updated by the update_bundle(chain, start_block) function in tool.py. This is called in the main flow in calc_return.py for each supported chain (base, op, arb, eth) with specific starting block numbers.
+The process works as follows:
+The function connects to the Ethereum hub contract and retrieves ProposeRootBundle events.
+It then looks for corresponding RelayedRootBundle events on the specified chain using the get_event_bundle_id() function.
+When it finds matching events based on the relayerRefundRoot hash, it:
+Extracts the bundle ID
+Gets block numbers for all chains from the event data
+Inserts a new record into the Bundle table with:
+chain
+bundle_id
+refund_root (the hash)
+End block numbers for each chain (base_end_block, op_end_block, arb_end_block, eth_end_block)
+After processing, it updates a variable to track the most recent bundle ID processed for that chain.
+The Bundle table serves as a record of root bundles proposed and relayed across chains, tracking the block ranges for each bundle.
+Return Table Updates
+The Return table is updated by the insert_return_data(chain, contract, cursor, web3, block) function in get_chain_fills.py. This function is called during the fill collection process for each chain.
+The process works as follows:
+The function retrieves ExecutedRelayerRefundRoot events from the chain's contract starting from a specified block.
+For each event, it checks if the relayer's wallet address is in the list of refund addresses.
+When it finds matching refund addresses:
+It extracts transaction data including hash, token address, amount, timestamp, and bundle ID
+Inserts a new record into the Return table with:
+tx_hash
+output_token (the token address)
+output_amount
+aim_chain (the chain where the return happened)
+block number
+time_stamp
+bundle_id (from the event's rootBundleId)
+The function handles potential duplicate entries with a try-except block for IntegrityError.
+The Return table records refunds issued to the relayer for relaying transactions, tied to specific bundles.
+Additional Updates
+The system also updates LP fees and deposit times for Fill records using the update_deposit_time_and_lp_fee() function, which:
+Sets LP fees to 0 for fills where repayment chain equals origin chain
+For other fills with missing deposit times:
+Retrieves deposit event data for the corresponding deposit IDs
+Calculates LP fees based on token amounts and timestamps
+Updates the Fill records with deposit timestamps and calculated LP fees
+This process is part of the overall data collection and reconciliation flow seen in calc_return.py, where first fills are collected, then deposit times and LP fees updated, then bundles updated, and finally returns calculated.
 
 
-
-old return schema.
-
-
-- draft of proccess_returns.py
-- drft of proccess_bundles.py 
-
-
-todo: 
-- common blockchain utils
-- have dbutils just be common utils. 
-- figure out pagination for collecting fills.
-- Should tokens happen after collecting fills? 
 
 
 ## Tests

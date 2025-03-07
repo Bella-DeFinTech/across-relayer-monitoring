@@ -137,6 +137,7 @@ class TestInitDb(unittest.TestCase):
                 gas_price TEXT,
                 block_number INTEGER NOT NULL,
                 tx_timestamp INTEGER NOT NULL,
+                deposit_timestamp INTEGER,
                 lp_fee TEXT,
                 bundle_id TEXT,
                 is_return BOOLEAN DEFAULT FALSE,
@@ -266,6 +267,7 @@ class TestInitDb(unittest.TestCase):
         self.assertEqual(columns["destination_chain_id"], "INTEGER")
         self.assertEqual(columns["block_number"], "INTEGER")
         self.assertEqual(columns["tx_timestamp"], "INTEGER")
+        self.assertEqual(columns["deposit_timestamp"], "INTEGER")
 
         # Verify Return table schema
         cursor.execute("PRAGMA table_info(Return)")
