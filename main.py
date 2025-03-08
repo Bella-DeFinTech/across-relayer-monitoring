@@ -35,27 +35,33 @@ def main():
 
     try:
         # Initialize database if it doesn't exist
+        logger.info("=" * 80)
         logger.info("Checking database")
         init_db()
 
         # Discover routes and update the database
+        logger.info("=" * 80)
         logger.info("Discovering routes")
         discover_routes()
 
         # Collect fills and update the database
+        logger.info("=" * 80)
         logger.info("Collecting fills")
         collect_fills()
 
         # Enrich fills with deposit timestamps and LP fees
+        logger.info("=" * 80)
         logger.info("Enriching fills with deposit timestamps and LP fees")
         enrich_fills()
 
         # Process returns and update the database
+        logger.info("=" * 80)
         logger.info("Processing returns")
         process_returns()
 
         # Process bundles and update the database
-        # logger.info("Processing bundles")
+        logger.info("=" * 80)
+        logger.info("Processing bundles")
         # process_bundles()
 
         # Calculate profit metrics
