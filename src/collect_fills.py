@@ -20,6 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def get_last_processed_block(chain_id: int) -> int:
     """
     Get the last processed block for a chain from the Fill table.

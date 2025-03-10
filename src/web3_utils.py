@@ -5,7 +5,7 @@ Web3 utility functions for blockchain interactions.
 import json
 import logging
 import os
-from typing import Dict, Optional, Any
+from typing import Any, Dict
 
 from web3 import Web3
 from web3.contract import Contract
@@ -13,6 +13,7 @@ from web3.contract import Contract
 from .config import CHAINS, get_chains
 
 logger = logging.getLogger(__name__)
+
 
 def get_spokepool_contracts() -> Dict[int, Contract]:
     """
@@ -23,9 +24,7 @@ def get_spokepool_contracts() -> Dict[int, Contract]:
     """
     # Load Spoke Pool ABI
     spoke_abi_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), 
-        "abi",
-        "spoke_abi.json"
+        os.path.dirname(os.path.abspath(__file__)), "abi", "spoke_abi.json"
     )
     try:
         with open(spoke_abi_path, "r") as file:
@@ -34,7 +33,7 @@ def get_spokepool_contracts() -> Dict[int, Contract]:
         logger.error(f"Could not find Spoke Pool ABI file at {spoke_abi_path}")
         return {}
 
-    contracts = {}
+    contracts: Dict[int, Contract] = {}
 
     for chain in CHAINS:
         try:
@@ -50,16 +49,30 @@ def get_spokepool_contracts() -> Dict[int, Contract]:
                 continue
 
             # Initialize Web3 and contract
-            w3 = Web3(Web3.HTTPProvider(str(rpc_url)))
+            if not isinstance(rpc_url, str):
+                logger.warning(
+                    f"Invalid RPC URL type for chain {chain.get('name', 'unknown')}"
+                )
+                continue
+            if not isinstance(spoke_pool_address, str):
+                logger.warning(
+                    f"Invalid spoke pool address type for chain {chain.get('name', 'unknown')}"
+                )
+                continue
+            w3 = Web3(Web3.HTTPProvider(rpc_url))
             checksum_address = Web3.to_checksum_address(spoke_pool_address)
             contract = w3.eth.contract(address=checksum_address, abi=spoke_pool_abi)
-            contracts[chain_id] = contract
+            if isinstance(chain_id, int):
+                contracts[chain_id] = contract
             logger.debug(f"Got contract for {chain['name']}")
 
         except Exception as e:
-            logger.error(f"Error getting contract for {chain.get('name', 'unknown')}: {str(e)}")
+            logger.error(
+                f"Error getting contract for {chain.get('name', 'unknown')}: {str(e)}"
+            )
 
     return contracts
+
 
 def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
     """
@@ -74,16 +87,19 @@ def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
     """
     # Load ERC20 ABI
     erc20_abi_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), 
-        "abi",
-        "erc20_abi.json"
+        os.path.dirname(os.path.abspath(__file__)), "abi", "erc20_abi.json"
     )
     try:
         with open(erc20_abi_path, "r") as file:
             erc20_abi = json.load(file)
     except FileNotFoundError:
         logger.error(f"Could not find ERC20 ABI file at {erc20_abi_path}")
-        return {"address": token_address, "name": None, "symbol": None, "decimals": None}
+        return {
+            "address": token_address,
+            "name": None,
+            "symbol": None,
+            "decimals": None,
+        }
 
     try:
         chain = get_chains(chain_id)
@@ -99,6 +115,8 @@ def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
                 "decimals": token_contract.functions.decimals().call(),
             }
     except Exception as e:
-        logger.error(f"Error getting token info for {token_address} on chain {chain_id}: {str(e)}")
+        logger.error(
+            f"Error getting token info for {token_address} on chain {chain_id}: {str(e)}"
+        )
 
     return {"address": token_address, "name": None, "symbol": None, "decimals": None}

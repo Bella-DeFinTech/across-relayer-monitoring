@@ -19,7 +19,6 @@ from src.collect_fills import collect_fills
 from src.discover_routes import discover_routes
 from src.enrich_fills import enrich_fills
 from src.init_db import init_db
-from src.process_returns import process_returns
 
 # Configure logging
 logging.basicConfig(

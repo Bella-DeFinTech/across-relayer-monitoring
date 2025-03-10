@@ -12,10 +12,9 @@ This module:
 import asyncio
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import aiohttp
-from web3 import Web3
 
 from .config import CHAINS, LOGGING_CONFIG, get_db_path
 from .web3_utils import get_spokepool_contracts
@@ -82,7 +81,11 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
     # Query each chain for deposit events
     for chain in CHAINS:
         try:
-            chain_id = int(chain["chain_id"])
+            chain_id_raw = chain.get("chain_id")
+            if not isinstance(chain_id_raw, int):
+                logger.warning(f"Invalid chain_id in configuration: {chain_id_raw}")
+                continue
+            chain_id = chain_id_raw
             chain_name = chain["name"]
             start_block = chain["start_block"]  #! Why is this needed?
             # start_block = chain["start_block"] - 1000000 #! Why is this needed?

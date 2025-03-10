@@ -3,8 +3,6 @@ This script identifies tokens used in Across Protocol's fillRelay transactions
 by analyzing the relayer's blockchain transactions.
 """
 
-import json
-import os
 from typing import Any, Dict, List
 
 import requests
@@ -17,7 +15,8 @@ from .config import (
     chain_id_to_name,
 )
 from .db_utils import get_db_connection, insert_route, insert_token
-from .web3_utils import get_spokepool_contracts, get_erc20_token_info
+from .web3_utils import get_erc20_token_info, get_spokepool_contracts
+
 
 def get_fill_routes() -> List[Dict[str, Any]]:
     """
@@ -105,12 +104,10 @@ def get_fill_routes() -> List[Dict[str, Any]]:
 
                             # Get token information
                             input_token_info = get_erc20_token_info(
-                                input_token, 
-                                origin_chain_id
+                                input_token, origin_chain_id
                             )
                             output_token_info = get_erc20_token_info(
-                                output_token, 
-                                destination_chain_id
+                                output_token, destination_chain_id
                             )
 
                             routes.append(
@@ -152,6 +149,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
             print(f"Error scanning {destination_chain['name']}: {str(e)}")
 
     return routes
+
 
 def insert_routes_into_db(routes: List[Dict[str, Any]]) -> None:
     """Insert routes into the database."""
