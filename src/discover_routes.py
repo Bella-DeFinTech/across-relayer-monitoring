@@ -17,104 +17,7 @@ from .config import (
     chain_id_to_name,
 )
 from .db_utils import get_db_connection, insert_route, insert_token
-
-# Define paths to ABI files
-ABI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "abi")
-ERC20_ABI_PATH = os.path.join(ABI_DIR, "erc20_abi.json")
-SPOKE_ABI_PATH = os.path.join(ABI_DIR, "spoke_abi.json")
-
-# Load the ABIs
-try:
-    with open(ERC20_ABI_PATH, "r") as file:
-        ERC20_ABI = json.load(file)
-except FileNotFoundError:
-    print(f"Error: Could not find ERC20 ABI file at {ERC20_ABI_PATH}")
-    ERC20_ABI = []
-
-try:
-    with open(SPOKE_ABI_PATH, "r") as file:
-        SPOKE_POOL_ABI = json.load(file)
-except FileNotFoundError:
-    print(f"Error: Could not find Spoke Pool ABI file at {SPOKE_ABI_PATH}")
-    SPOKE_POOL_ABI = []
-
-# Store contract instances
-contracts = {}
-
-
-def initialize_contracts():
-    """Initialize Web3 contract instances for each chain."""
-    if not SPOKE_POOL_ABI:
-        print("Warning: Cannot initialize contracts without Spoke Pool ABI")
-        return
-
-    for chain in CHAINS:
-        # Convert chain_id to string first, then to int for safety
-        if "chain_id" not in chain or chain["chain_id"] is None:
-            print(f"Error: Missing chain_id in chain configuration: {chain}")
-            continue
-
-        chain_id_str = str(chain["chain_id"])
-        try:
-            chain_id = int(chain_id_str)
-        except ValueError:
-            print(f"Error: Invalid chain_id in chain configuration: {chain_id_str}")
-            continue
-
-        try:
-            # Ensure RPC URL is treated as string
-            rpc_url = str(chain.get("rpc_url", ""))
-            if not rpc_url:
-                print(f"Warning: Missing or empty RPC URL for chain {chain_id}")
-                continue
-
-            w3 = Web3(Web3.HTTPProvider(rpc_url))
-            spoke_pool_address = chain.get("spoke_pool_address")
-
-            if not spoke_pool_address:
-                print(f"Warning: No spoke pool address configured for {chain['name']}")
-                continue
-
-            # Convert spoke pool address to checksum address
-            checksum_address = Web3.to_checksum_address(spoke_pool_address)
-            contract = w3.eth.contract(address=checksum_address, abi=SPOKE_POOL_ABI)
-            contracts[chain_id] = contract
-
-        except Exception as e:
-            print(f"Error initializing contract for {chain['name']}: {str(e)}")
-
-
-def get_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
-    """
-    Get token information using Web3 calls.
-
-    Args:
-        token_address (str): Token contract address
-        chain_id (int): ID of the chain where the token is deployed
-
-    Returns:
-        dict: Token information including name, symbol and decimals
-    """
-    try:
-        chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
-        if chain and chain.get("rpc_url") and ERC20_ABI:
-            w3 = Web3(Web3.HTTPProvider(str(chain["rpc_url"])))
-            checksum_address = Web3.to_checksum_address(token_address)
-            token_contract = w3.eth.contract(address=checksum_address, abi=ERC20_ABI)
-
-            return {
-                "address": token_address,
-                "name": token_contract.functions.name().call(),
-                "symbol": token_contract.functions.symbol().call(),
-                "decimals": token_contract.functions.decimals().call(),
-            }
-    except Exception as e:
-        print(
-            f"Error getting token info for {token_address} on chain {chain_id}: {str(e)}"
-        )
-
-    return {"address": token_address, "name": None, "symbol": None, "decimals": None}
-
+from .web3_utils import get_spokepool_contracts, get_erc20_token_info
 
 def get_fill_routes() -> List[Dict[str, Any]]:
     """
@@ -129,7 +32,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
             - token_name: Token name if available
             - token_decimals: Token decimals if available
     """
-    initialize_contracts()
+    contracts = get_spokepool_contracts()
 
     if not contracts:
         print("Error: No contracts initialized. Cannot proceed with route analysis.")
@@ -199,14 +102,15 @@ def get_fill_routes() -> List[Dict[str, Any]]:
 
                         if route_key not in unique_routes:
                             unique_routes.add(route_key)
-                            # print(f"Found unique route: {route_key}")
 
                             # Get token information
-                            input_token_info = get_token_info(
-                                input_token, origin_chain_id
+                            input_token_info = get_erc20_token_info(
+                                input_token, 
+                                origin_chain_id
                             )
-                            output_token_info = get_token_info(
-                                output_token, destination_chain_id
+                            output_token_info = get_erc20_token_info(
+                                output_token, 
+                                destination_chain_id
                             )
 
                             routes.append(
@@ -248,7 +152,6 @@ def get_fill_routes() -> List[Dict[str, Any]]:
             print(f"Error scanning {destination_chain['name']}: {str(e)}")
 
     return routes
-
 
 def insert_routes_into_db(routes: List[Dict[str, Any]]) -> None:
     """Insert routes into the database."""

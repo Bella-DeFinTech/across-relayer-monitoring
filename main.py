@@ -54,15 +54,15 @@ def main():
         logger.info("Enriching fills with deposit timestamps and LP fees")
         enrich_fills()
 
-        # Process returns and update the database
-        logger.info("=" * 80)
-        logger.info("Processing returns")
-        process_returns()
+        # # Process returns and update the database
+        # logger.info("=" * 80)
+        # logger.info("Processing returns")
+        # process_returns()
 
-        # Process bundles and update the database
-        logger.info("=" * 80)
-        logger.info("Processing bundles")
-        # process_bundles()
+        # # Process bundles and update the database
+        # logger.info("=" * 80)
+        # logger.info("Processing bundles")
+        # # process_bundles()
 
         # Calculate profit metrics
         # logger.info("Calculating profit metrics")

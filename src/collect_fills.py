@@ -4,9 +4,7 @@ Collect and store fill transactions from supported chains.
 This module monitors blockchain transactions for fills and stores them in the database.
 """
 
-import json
 import logging
-import os
 from typing import Any, Dict, List, Optional, cast
 
 import requests
@@ -14,51 +12,13 @@ from web3 import Web3
 
 from .config import CHAINS, FILL_RELAY_METHOD_ID, LOGGING_CONFIG, RELAYER_ADDRESS
 from .db_utils import get_db_connection
+from .web3_utils import get_spokepool_contracts
 
 # Configure logging
 logging.basicConfig(
     level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
 )
 logger = logging.getLogger(__name__)
-
-# Load contract ABIs
-ABI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "abi")
-SPOKE_ABI_PATH = os.path.join(ABI_DIR, "spoke_abi.json")
-
-try:
-    with open(SPOKE_ABI_PATH, "r") as file:
-        SPOKE_POOL_ABI = json.load(file)
-except FileNotFoundError:
-    logger.error(f"Could not find Spoke Pool ABI file at {SPOKE_ABI_PATH}")
-    SPOKE_POOL_ABI = []
-
-# Store contract instances
-contracts = {}
-
-
-def initialize_contracts():
-    """Initialize Web3 contract instances for each chain."""
-    if not SPOKE_POOL_ABI:
-        logger.error("Cannot initialize contracts without Spoke Pool ABI")
-        return
-
-    for chain in CHAINS:
-        try:
-            w3 = Web3(Web3.HTTPProvider(str(chain["rpc_url"])))
-            spoke_pool_address = chain.get("spoke_pool_address")
-
-            if not spoke_pool_address:
-                logger.warning(f"No spoke pool address configured for {chain['name']}")
-                continue
-
-            checksum_address = Web3.to_checksum_address(spoke_pool_address)
-            contract = w3.eth.contract(address=checksum_address, abi=SPOKE_POOL_ABI)
-            contracts[chain["chain_id"]] = contract
-            logger.debug(f"Initialized contract for {chain['name']}")
-
-        except Exception as e:
-            logger.error(f"Error initializing contract for {chain['name']}: {str(e)}")
-
 
 def get_last_processed_block(chain_id: int) -> int:
     """
@@ -155,13 +115,14 @@ def get_fill_transactions(chain: Dict, start_block: int) -> List[Dict]:
         return []
 
 
-def process_and_store_fill(tx: Dict, chain: Dict):
+def process_and_store_fill(tx: Dict, chain: Dict, contracts: Dict[int, Any]):
     """
     Process a fill transaction and store it in the database.
 
     Args:
         tx: Transaction data from the blockchain explorer
         chain: Chain configuration dictionary
+        contracts: Dictionary mapping chain IDs to contract instances
     """
     try:
         # Get contract instance for decoding
@@ -288,7 +249,7 @@ def collect_fills():
     Main function to collect fills from all chains.
     """
     logger.info("Starting fill collection")
-    initialize_contracts()
+    contracts = get_spokepool_contracts()
 
     if not contracts:
         logger.error("No contracts initialized. Cannot proceed with fill collection.")
@@ -300,7 +261,7 @@ def collect_fills():
             fills = get_fill_transactions(chain, last_block)
 
             for fill in fills:
-                process_and_store_fill(fill, chain)
+                process_and_store_fill(fill, chain, contracts)
 
         except Exception as e:
             logger.error(f"Error processing chain {chain['name']}: {str(e)}")

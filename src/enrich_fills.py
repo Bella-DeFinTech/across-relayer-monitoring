@@ -10,82 +10,21 @@ This module:
 """
 
 import asyncio
-import json
 import logging
-import os
 import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 from web3 import Web3
 
-from config import CHAINS, LOGGING_CONFIG, get_db_path
+from .config import CHAINS, LOGGING_CONFIG, get_db_path
+from .web3_utils import get_spokepool_contracts
 
 # Configure logging
 logging.basicConfig(
     level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
 )
 logger = logging.getLogger(__name__)
-
-# Load contract ABIs
-ABI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "abi")
-SPOKE_ABI_PATH = os.path.join(ABI_DIR, "spoke_abi.json")
-
-try:
-    with open(SPOKE_ABI_PATH, "r") as file:
-        SPOKE_POOL_ABI = json.load(file)
-except FileNotFoundError:
-    logger.error(f"Could not find Spoke Pool ABI file at {SPOKE_ABI_PATH}")
-    SPOKE_POOL_ABI = []
-
-# Store contract instances
-contracts: Dict[int, Dict[str, Any]] = {}
-
-
-def initialize_contracts() -> Dict[int, Dict[str, Any]]:
-    """
-    Initialize Web3 contract instances for each chain.
-
-    Returns:
-        Dictionary mapping chain IDs to dictionaries containing web3 instances
-        and contract instances.
-    """
-    initialized_contracts: Dict[int, Dict[str, Any]] = {}
-
-    if not SPOKE_POOL_ABI:
-        logger.error("Cannot initialize contracts without Spoke Pool ABI")
-        return initialized_contracts
-
-    for chain in CHAINS:
-        try:
-            chain_id = int(chain["chain_id"])
-            w3 = Web3(Web3.HTTPProvider(str(chain["rpc_url"])))
-            spoke_pool_address = chain.get("spoke_pool_address")
-
-            if not spoke_pool_address:
-                logger.warning(f"No spoke pool address for chain {chain['name']}")
-                continue
-
-            # Create contract instance
-            spoke_contract = w3.eth.contract(
-                address=Web3.to_checksum_address(spoke_pool_address), abi=SPOKE_POOL_ABI
-            )
-
-            # Store all necessary objects for this chain
-            initialized_contracts[chain_id] = {
-                "web3": w3,
-                "spoke_contract": spoke_contract,
-                "chain_info": chain,
-            }
-
-            logger.debug(f"Initialized contract for chain {chain['name']}")
-
-        except Exception as e:
-            logger.error(
-                f"Error initializing contract for {chain.get('name', 'unknown')}: {str(e)}"
-            )
-
-    return initialized_contracts
 
 
 def get_unenriched_fills() -> List[Dict]:
@@ -129,9 +68,9 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
     Returns:
         Dictionary mapping deposit IDs to their corresponding events
     """
-    # Initialize contracts for all chains
-    chain_contracts = initialize_contracts()
-    if not chain_contracts:
+    # Get contracts for all chains
+    contracts = get_spokepool_contracts()
+    if not contracts:
         logger.error("No contracts initialized")
         return {}
 
@@ -148,11 +87,11 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
             start_block = chain["start_block"]  #! Why is this needed?
             # start_block = chain["start_block"] - 1000000 #! Why is this needed?
 
-            if chain_id not in chain_contracts:
+            if chain_id not in contracts:
                 logger.warning(f"No contract configured for chain {chain_name}")
                 continue
 
-            contract = chain_contracts[chain_id]["spoke_contract"]
+            contract = contracts[chain_id]
 
             logger.info(
                 f"Searching for deposit events on {chain_name} from block {start_block}"
@@ -288,9 +227,7 @@ async def process_fill_batch(
                 continue
 
             event = deposit_events[deposit_id]
-            deposit_timestamp = event["args"][
-                "quoteTimestamp"
-            ]  # This is guaranteed to exist
+            deposit_timestamp = event["args"]["quoteTimestamp"]
 
             # Create task for getting LP fee
             task = asyncio.create_task(
