@@ -91,9 +91,12 @@ def get_fill_transactions(chain: Dict, start_block: int) -> List[Dict]:
         data = response.json()
 
         if data["status"] != "1":
-            logger.error(
-                f"Error fetching data for {chain['name']}: {data.get('message', 'Unknown error')}"
-            )
+            if data.get("message") == "No transactions found":
+                logger.info(f"No fill transactions found for {chain['name']}")
+            else:
+                logger.error(
+                    f"Error fetching data for {chain['name']}: {data.get('message', 'Unknown error')}"
+                )
             return []
 
         # Filter for fillRelay transactions (both successful and failed)

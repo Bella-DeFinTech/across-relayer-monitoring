@@ -131,3 +131,39 @@ def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
         )
 
     return {"address": token_address, "name": None, "symbol": None, "decimals": None}
+
+
+def get_block_timestamp(chain_id: int, block_number: int) -> int:
+    """
+    Get block timestamp for a given block number on a specific chain.
+
+    Args:
+        chain_id (int): ID of the blockchain chain
+        block_number (int): Block number to get timestamp for
+
+    Returns:
+        int: Block timestamp
+
+    Raises:
+        ValueError: If chain configuration is missing or invalid
+    """
+    try:
+        chain = get_chains(chain_id)
+        if not chain or not chain.get("rpc_url"):
+            raise ValueError(f"Missing or invalid configuration for chain {chain_id}")
+
+        try:
+            rpc_url_str = cast(str, chain["rpc_url"])
+        except (TypeError, ValueError) as e:
+            logger.error(f"Invalid RPC URL type for chain {chain_id}: {str(e)}")
+            raise ValueError(f"Invalid RPC URL configuration for chain {chain_id}")
+
+        w3 = Web3(Web3.HTTPProvider(rpc_url_str))
+        block = w3.eth.get_block(block_number)
+        return block["timestamp"]
+
+    except Exception as e:
+        logger.error(
+            f"Error getting block timestamp for block {block_number} on chain {chain_id}: {str(e)}"
+        )
+        raise

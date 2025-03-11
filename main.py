@@ -19,6 +19,7 @@ from src.collect_fills import collect_fills
 from src.discover_routes import discover_routes
 from src.enrich_fills import enrich_fills
 from src.init_db import init_db
+from src.process_returns import process_returns
 
 # Configure logging
 logging.basicConfig(
@@ -53,10 +54,10 @@ def main():
         logger.info("Enriching fills with deposit timestamps and LP fees")
         enrich_fills()
 
-        # # Process returns and update the database
-        # logger.info("=" * 80)
-        # logger.info("Processing returns")
-        # process_returns()
+        # Process returns and update the database
+        logger.info("=" * 80)
+        logger.info("Processing returns")
+        process_returns()
 
         # # Process bundles and update the database
         # logger.info("=" * 80)

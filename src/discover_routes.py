@@ -3,6 +3,7 @@ This script identifies tokens used in Across Protocol's fillRelay transactions
 by analyzing the relayer's blockchain transactions.
 """
 
+import logging
 from typing import Any, Dict, List
 
 import requests
@@ -11,11 +12,18 @@ from web3 import Web3
 from .config import (
     CHAINS,
     FILL_RELAY_METHOD_ID,
+    LOGGING_CONFIG,
     RELAYER_ADDRESS,
     chain_id_to_name,
 )
 from .db_utils import get_db_connection, insert_route, insert_token
 from .web3_utils import get_erc20_token_info, get_spokepool_contracts
+
+# Configure logging
+logging.basicConfig(
+    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
+)
+logger = logging.getLogger(__name__)
 
 
 def get_fill_routes() -> List[Dict[str, Any]]:
@@ -34,7 +42,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
     contracts = get_spokepool_contracts()
 
     if not contracts:
-        print("Error: No contracts initialized. Cannot proceed with route analysis.")
+        logger.error("No contracts initialized. Cannot proceed with route analysis.")
         return []
 
     routes = []
@@ -43,8 +51,8 @@ def get_fill_routes() -> List[Dict[str, Any]]:
     for destination_chain in CHAINS:
         # Ensure chain_id is properly handled as integer
         if "chain_id" not in destination_chain or destination_chain["chain_id"] is None:
-            print(
-                f"Error: Missing chain_id in chain configuration: {destination_chain}"
+            logger.error(
+                f"Missing chain_id in chain configuration: {destination_chain}"
             )
             continue
 
@@ -53,13 +61,13 @@ def get_fill_routes() -> List[Dict[str, Any]]:
         try:
             destination_chain_id = int(chain_id_str)
         except ValueError:
-            print(f"Error: Invalid chain_id in chain configuration: {chain_id_str}")
+            logger.error(f"Invalid chain_id in chain configuration: {chain_id_str}")
             continue
 
         if destination_chain_id not in contracts:
             continue
 
-        print(f"Scanning {destination_chain['name']} for fill routes...")
+        logger.info(f"Scanning {destination_chain['name']} for fill routes...")
 
         # Get transactions from block explorer API
         url = f"{destination_chain['explorer_api_url']}?module=account&action=txlist&address={RELAYER_ADDRESS}&startblock=0&endblock=999999999&sort=desc&apikey={destination_chain['api_key']}"
@@ -69,7 +77,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
             data = response.json()
 
             if data["status"] != "1":
-                print(
+                logger.error(
                     f"Error fetching data for {destination_chain['name']}: {data['message']}"
                 )
                 continue
@@ -141,12 +149,12 @@ def get_fill_routes() -> List[Dict[str, Any]]:
                             )
 
                     except Exception as e:
-                        print(
+                        logger.error(
                             f"Error processing transaction {tx.get('hash', 'unknown')}: {str(e)}"
                         )
 
         except Exception as e:
-            print(f"Error scanning {destination_chain['name']}: {str(e)}")
+            logger.error(f"Error scanning {destination_chain['name']}: {str(e)}")
 
     return routes
 
@@ -155,7 +163,7 @@ def insert_routes_into_db(routes: List[Dict[str, Any]]) -> None:
     """Insert routes into the database."""
     conn = get_db_connection()
     if not conn:
-        print("Warning: Could not establish database connection")
+        logger.warning("Could not establish database connection")
         return
 
     try:
@@ -175,13 +183,13 @@ def insert_routes_into_db(routes: List[Dict[str, Any]]) -> None:
             else:
                 existing_routes += 1
 
-        print("Route insertion summary:")
-        print(f"  - {new_routes} new routes inserted")
-        print(f"  - {existing_routes} existing routes skipped")
-        print(f"  - {new_routes + existing_routes} total unique routes processed")
+        logger.info("Route insertion summary:")
+        logger.info(f"  - {new_routes} new routes inserted")
+        logger.info(f"  - {existing_routes} existing routes skipped")
+        logger.info(f"  - {new_routes + existing_routes} total unique routes processed")
 
     except Exception as e:
-        print(f"Error during route insertion: {e}")
+        logger.error(f"Error during route insertion: {e}")
     finally:
         conn.close()
 
@@ -190,11 +198,11 @@ def insert_token_info_into_db(routes: List[Dict[str, Any]]) -> None:
     """Insert token information into the database."""
     conn = get_db_connection()
     if not conn:
-        print("Warning: Could not establish database connection")
+        logger.warning("Could not establish database connection")
         return
 
     try:
-        print("\nStarting token insertion process...")
+        logger.info("Starting token insertion process...")
         # Collect unique tokens by address
         unique_tokens = {}
         for route in routes:
@@ -227,13 +235,13 @@ def insert_token_info_into_db(routes: List[Dict[str, Any]]) -> None:
             else:
                 existing_tokens += 1
 
-        print("\nToken insertion summary:")
-        print(f"  - {new_tokens} new tokens inserted")
-        print(f"  - {existing_tokens} existing tokens skipped")
-        print(f"  - {new_tokens + existing_tokens} total unique tokens processed")
+        logger.info("Token insertion summary:")
+        logger.info(f"  - {new_tokens} new tokens inserted")
+        logger.info(f"  - {existing_tokens} existing tokens skipped")
+        logger.info(f"  - {new_tokens + existing_tokens} total unique tokens processed")
 
     except Exception as e:
-        print(f"Error during token insertion: {e}")
+        logger.error(f"Error during token insertion: {e}")
     finally:
         conn.close()
 
