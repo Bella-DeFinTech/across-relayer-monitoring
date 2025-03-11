@@ -54,6 +54,8 @@ CREATE TABLE Fill (
     gas_price TEXT,                                 -- Gas price used for transaction
     block_number INTEGER NOT NULL,                  -- Block where tx was confirmed
     tx_timestamp INTEGER NOT NULL,                     -- Transaction timestamp
+    deposit_block_number INTEGER,                   -- Block number where deposit event occurred
+    deposit_timestamp INTEGER,                      -- Timestamp from deposit event    
     lp_fee TEXT,                                    -- LP fee charged by protocol
     bundle_id TEXT,                                 -- Bundle ID this fill belongs to (NOT USED)
     is_return BOOLEAN DEFAULT FALSE,                -- Whether this fill is a return (NOT USED)

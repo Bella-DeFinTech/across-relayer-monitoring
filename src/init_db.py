@@ -121,6 +121,7 @@ def init_db():
             gas_price TEXT,
             block_number INTEGER NOT NULL,
             tx_timestamp INTEGER NOT NULL,
+            deposit_block_number INTEGER,
             deposit_timestamp INTEGER,
             lp_fee TEXT,
             bundle_id TEXT,

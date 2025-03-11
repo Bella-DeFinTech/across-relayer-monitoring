@@ -26,6 +26,52 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def get_deposit_start_block(chain_id: int) -> int:
+    """
+    Get the block to start searching for deposit events from.
+    
+    Args:
+        chain_id: Chain ID to get start block for
+        
+    Returns:
+        Latest deposit block number from Fill table if exists,
+        otherwise chain's start_block - 1000000 for first run
+    """
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+
+    try:
+        # Try to get the latest deposit block for this chain
+        cursor.execute(
+            """
+            SELECT MAX(deposit_block_number) 
+            FROM Fill 
+            WHERE origin_chain_id = ?
+            """,
+            (chain_id,),
+        )
+        result = cursor.fetchone()
+        
+        if result and result[0] is not None:
+            logger.info(f"Using latest deposit block {result[0]} for chain {chain_id}")
+            return result[0]
+
+        # If no deposits found, use chain's start_block - 1M blocks
+        chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
+        if chain and "start_block" in chain:
+            start_block = chain["start_block"] - 1000000
+            logger.info(f"No deposits found for chain {chain_id}, using start_block - 1M: {start_block}")
+            return start_block
+
+        return 0
+
+    except Exception as e:
+        logger.error(f"Error getting deposit start block for chain {chain_id}: {str(e)}")
+        return 0
+    finally:
+        conn.close()
+
+
 def get_unenriched_fills() -> List[Dict]:
     """
     Retrieve all Fill records that need deposit timestamp and LP fee enrichment.
@@ -47,7 +93,7 @@ def get_unenriched_fills() -> List[Dict]:
             input_amount
         FROM Fill 
         WHERE is_success = 1 
-          AND (tx_timestamp IS NULL OR lp_fee IS NULL)
+          AND (deposit_timestamp IS NULL OR lp_fee IS NULL)
     """)
 
     columns = [col[0] for col in cursor.description]
@@ -87,8 +133,9 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
                 continue
             chain_id = chain_id_raw
             chain_name = chain["name"]
-            start_block = chain["start_block"]  #! Why is this needed?
-            # start_block = chain["start_block"] - 1000000 #! Why is this needed?
+            
+            # Get appropriate start block for this chain
+            start_block = get_deposit_start_block(chain_id)
 
             if chain_id not in contracts:
                 logger.warning(f"No contract configured for chain {chain_name}")
@@ -167,14 +214,15 @@ async def get_lp_fee(
 
 
 def update_fill_with_enrichment(
-    tx_hash: str, deposit_timestamp: int, lp_fee: str
+    tx_hash: str, deposit_timestamp: int, deposit_block_number: int, lp_fee: str
 ) -> bool:
     """
-    Update a Fill record with deposit timestamp and LP fee.
+    Update a Fill record with deposit timestamp, block number and LP fee.
 
     Args:
         tx_hash: Transaction hash of the fill
         deposit_timestamp: Unix timestamp of the deposit event
+        deposit_block_number: Block number where deposit occurred
         lp_fee: Calculated LP fee
 
     Returns:
@@ -187,10 +235,12 @@ def update_fill_with_enrichment(
         cursor.execute(
             """
             UPDATE Fill 
-            SET deposit_timestamp = ?, lp_fee = ? 
+            SET deposit_timestamp = ?, 
+                deposit_block_number = ?,
+                lp_fee = ? 
             WHERE tx_hash = ?
             """,
-            (deposit_timestamp, lp_fee, tx_hash),
+            (deposit_timestamp, deposit_block_number, lp_fee, tx_hash),
         )
         conn.commit()
         return cursor.rowcount > 0
@@ -231,6 +281,7 @@ async def process_fill_batch(
 
             event = deposit_events[deposit_id]
             deposit_timestamp = event["args"]["quoteTimestamp"]
+            deposit_block_number = event["blockNumber"]
 
             # Create task for getting LP fee
             task = asyncio.create_task(
@@ -244,14 +295,14 @@ async def process_fill_batch(
                     session,
                 )
             )
-            tasks.append((fill["tx_hash"], deposit_timestamp, task, deposit_id))
+            tasks.append((fill["tx_hash"], deposit_timestamp, deposit_block_number, task, deposit_id))
 
         # Wait for all LP fee requests to complete
-        for tx_hash, deposit_timestamp, task, deposit_id in tasks:
+        for tx_hash, deposit_timestamp, deposit_block_number, task, deposit_id in tasks:
             try:
                 lp_fee = await task
                 if lp_fee is not None:
-                    update_fill_with_enrichment(tx_hash, deposit_timestamp, lp_fee)
+                    update_fill_with_enrichment(tx_hash, deposit_timestamp, deposit_block_number, lp_fee)
                     processed += 1
                 else:
                     failed += 1
