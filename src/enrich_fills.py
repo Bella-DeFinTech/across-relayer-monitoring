@@ -12,7 +12,7 @@ This module:
 import asyncio
 import logging
 import sqlite3
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import aiohttp
 
@@ -29,13 +29,16 @@ logger = logging.getLogger(__name__)
 def get_deposit_start_block(chain_id: int) -> int:
     """
     Get the block to start searching for deposit events from.
-    
+
     Args:
         chain_id: Chain ID to get start block for
-        
+
     Returns:
         Latest deposit block number from Fill table if exists,
         otherwise chain's start_block - 1000000 for first run
+
+    Raises:
+        TypeError: If chain_id or start_block in configuration has invalid type
     """
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
@@ -51,23 +54,33 @@ def get_deposit_start_block(chain_id: int) -> int:
             (chain_id,),
         )
         result = cursor.fetchone()
-        
+
         if result and result[0] is not None:
             logger.info(f"Using latest deposit block {result[0]} for chain {chain_id}")
             return result[0]
 
         # If no deposits found, use chain's start_block - 1M blocks
         chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
-        if chain and "start_block" in chain:
-            start_block = chain["start_block"] - 1000000
-            logger.info(f"No deposits found for chain {chain_id}, using start_block - 1M: {start_block}")
-            return start_block
+        if not chain:
+            raise ValueError(f"No configuration found for chain {chain_id}")
 
-        return 0
+        if "start_block" not in chain:
+            raise ValueError(f"No start_block configured for chain {chain_id}")
+
+        try:
+            start_block = cast(int, chain["start_block"]) - 1000000
+            logger.info(
+                f"No deposits found for chain {chain_id}, using start_block - 1M: {start_block}"
+            )
+            return start_block
+        except (TypeError, ValueError) as e:
+            raise TypeError(f"Invalid start_block type for chain {chain_id}: {str(e)}")
 
     except Exception as e:
-        logger.error(f"Error getting deposit start block for chain {chain_id}: {str(e)}")
-        return 0
+        logger.error(
+            f"Error getting deposit start block for chain {chain_id}: {str(e)}"
+        )
+        raise
     finally:
         conn.close()
 
@@ -112,6 +125,9 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
 
     Returns:
         Dictionary mapping deposit IDs to their corresponding events
+
+    Raises:
+        TypeError: If chain_id in configuration has invalid type
     """
     # Get contracts for all chains
     contracts = get_spokepool_contracts()
@@ -127,13 +143,16 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
     # Query each chain for deposit events
     for chain in CHAINS:
         try:
-            chain_id_raw = chain.get("chain_id")
-            if not isinstance(chain_id_raw, int):
-                logger.warning(f"Invalid chain_id in configuration: {chain_id_raw}")
-                continue
-            chain_id = chain_id_raw
+            try:
+                chain_id = cast(int, chain.get("chain_id"))
+            except (TypeError, ValueError) as e:
+                logger.error(
+                    f"Invalid chain_id in configuration: {chain.get('chain_id')}"
+                )
+                raise TypeError(f"Invalid chain_id type in configuration: {str(e)}")
+
             chain_name = chain["name"]
-            
+
             # Get appropriate start block for this chain
             start_block = get_deposit_start_block(chain_id)
 
@@ -295,14 +314,24 @@ async def process_fill_batch(
                     session,
                 )
             )
-            tasks.append((fill["tx_hash"], deposit_timestamp, deposit_block_number, task, deposit_id))
+            tasks.append(
+                (
+                    fill["tx_hash"],
+                    deposit_timestamp,
+                    deposit_block_number,
+                    task,
+                    deposit_id,
+                )
+            )
 
         # Wait for all LP fee requests to complete
         for tx_hash, deposit_timestamp, deposit_block_number, task, deposit_id in tasks:
             try:
                 lp_fee = await task
                 if lp_fee is not None:
-                    update_fill_with_enrichment(tx_hash, deposit_timestamp, deposit_block_number, lp_fee)
+                    update_fill_with_enrichment(
+                        tx_hash, deposit_timestamp, deposit_block_number, lp_fee
+                    )
                     processed += 1
                 else:
                     failed += 1

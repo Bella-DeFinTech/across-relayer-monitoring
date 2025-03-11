@@ -5,7 +5,7 @@ Web3 utility functions for blockchain interactions.
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from web3 import Web3
 from web3.contract import Contract
@@ -21,6 +21,9 @@ def get_spokepool_contracts() -> Dict[int, Contract]:
 
     Returns:
         Dict[int, Contract]: Dictionary mapping chain IDs to contract instances
+
+    Raises:
+        TypeError: If chain configuration has invalid types for required fields
     """
     # Load Spoke Pool ABI
     spoke_abi_path = os.path.join(
@@ -49,21 +52,18 @@ def get_spokepool_contracts() -> Dict[int, Contract]:
                 continue
 
             # Initialize Web3 and contract
-            if not isinstance(rpc_url, str):
-                logger.warning(
-                    f"Invalid RPC URL type for chain {chain.get('name', 'unknown')}"
-                )
+            try:
+                rpc_url_str = cast(str, rpc_url)
+                spoke_pool_address_str = cast(str, spoke_pool_address)
+                chain_id_int = cast(int, chain_id)
+            except (TypeError, ValueError) as e:
+                logger.error(f"Invalid type in chain configuration: {str(e)}")
                 continue
-            if not isinstance(spoke_pool_address, str):
-                logger.warning(
-                    f"Invalid spoke pool address type for chain {chain.get('name', 'unknown')}"
-                )
-                continue
-            w3 = Web3(Web3.HTTPProvider(rpc_url))
-            checksum_address = Web3.to_checksum_address(spoke_pool_address)
+
+            w3 = Web3(Web3.HTTPProvider(rpc_url_str))
+            checksum_address = Web3.to_checksum_address(spoke_pool_address_str)
             contract = w3.eth.contract(address=checksum_address, abi=spoke_pool_abi)
-            if isinstance(chain_id, int):
-                contracts[chain_id] = contract
+            contracts[chain_id_int] = contract
             logger.debug(f"Got contract for {chain['name']}")
 
         except Exception as e:
@@ -104,7 +104,18 @@ def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
     try:
         chain = get_chains(chain_id)
         if chain and chain.get("rpc_url"):
-            w3 = Web3(Web3.HTTPProvider(str(chain["rpc_url"])))
+            try:
+                rpc_url_str = cast(str, chain["rpc_url"])
+            except (TypeError, ValueError) as e:
+                logger.error(f"Invalid RPC URL type for chain {chain_id}: {str(e)}")
+                return {
+                    "address": token_address,
+                    "name": None,
+                    "symbol": None,
+                    "decimals": None,
+                }
+
+            w3 = Web3(Web3.HTTPProvider(rpc_url_str))
             checksum_address = Web3.to_checksum_address(token_address)
             token_contract = w3.eth.contract(address=checksum_address, abi=erc20_abi)
 
