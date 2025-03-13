@@ -201,9 +201,12 @@ async def get_lp_fee(
     amount: str,
     deposit_timestamp: int,
     session: aiohttp.ClientSession,
+    max_retries: int = 3,
+    initial_delay: float = 1.0,
 ) -> Optional[str]:
     """
     Retrieve LP fee from the Across API for a given transfer.
+    Implements exponential backoff retry logic for failed requests.
 
     Args:
         input_token: Token address on origin chain
@@ -213,23 +216,62 @@ async def get_lp_fee(
         amount: Amount being transferred (in smallest unit)
         deposit_timestamp: Unix timestamp when deposit was made
         session: Aiohttp client session for making requests
+        max_retries: Maximum number of retry attempts (default: 3)
+        initial_delay: Initial delay in seconds before first retry (default: 1.0)
 
     Returns:
-        LP fee as a string in the smallest unit, or None if error
+        LP fee as a string in the smallest unit, or None if all retries fail
     """
     url = f"https://app.across.to/api/suggested-fees?inputToken={input_token}&outputToken={output_token}&originChainId={origin_chain_id}&destinationChainId={destination_chain_id}&amount={amount}&timestamp={deposit_timestamp}"
 
-    try:
-        async with session.get(url) as response:
-            if response.status == 200:
-                data = await response.json()
-                return str(data["lpFee"]["total"])
+    # Old code without exponential backoff
+    # try:
+    #     async with session.get(url) as response:
+    #         if response.status == 200:
+    #             data = await response.json()
+    #             return str(data["lpFee"]["total"])
+    #         else:
+    #             logger.error(f"API request failed with status {response.status}")
+    #             return None
+    # except Exception as e:
+    #     logger.error(f"Error retrieving LP fee from API: {str(e)}")
+    #     return None
+
+    for attempt in range(max_retries + 1):  # +1 for initial attempt
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return str(data["lpFee"]["total"])
+                
+                # If not last attempt, prepare for retry
+                if attempt < max_retries:
+                    delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(
+                        f"API request failed with status {response.status}. "
+                        f"Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(
+                        f"API request failed with status {response.status} "
+                        f"after {max_retries} retries"
+                    )
+                    return None
+                    
+        except Exception as e:
+            if attempt < max_retries:
+                delay = initial_delay * (2 ** attempt)
+                logger.warning(
+                    f"Error retrieving LP fee: {str(e)}. "
+                    f"Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                )
+                await asyncio.sleep(delay)
             else:
-                logger.error(f"API request failed with status {response.status}")
+                logger.error(f"Error retrieving LP fee after {max_retries} retries: {str(e)}")
                 return None
-    except Exception as e:
-        logger.error(f"Error retrieving LP fee from API: {str(e)}")
-        return None
+
+    return None  # Should never reach here, but keeps mypy happy
 
 
 def update_fill_with_enrichment(
