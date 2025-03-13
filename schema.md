@@ -80,11 +80,11 @@ CREATE TABLE Return (
     FOREIGN KEY (return_token, return_chain_id) REFERENCES Token(token_address, chain_id)
 );
 
+
 CREATE TABLE Bundle (
     bundle_id INTEGER NOT NULL,             -- Bundle ID from event
     chain_id INTEGER NOT NULL,              -- Chain where this bundle applies
     relayer_refund_root TEXT NOT NULL,              -- Relayer refund root hash
-    start_block INTEGER NOT NULL,           -- Starting block for this bundle on this chain
     end_block INTEGER NOT NULL,             -- Ending block for this bundle on this chain
     processed_timestamp INTEGER,            -- When this bundle was processed
     PRIMARY KEY (bundle_id, chain_id),

@@ -151,7 +151,6 @@ def init_db():
             bundle_id INTEGER NOT NULL,
             chain_id INTEGER NOT NULL,
             relayer_refund_root TEXT NOT NULL,
-            start_block INTEGER NOT NULL,
             end_block INTEGER NOT NULL,
             processed_timestamp INTEGER,
             PRIMARY KEY (bundle_id, chain_id),

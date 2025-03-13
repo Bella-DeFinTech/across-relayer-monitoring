@@ -283,6 +283,8 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
                         "bundleEvaluationBlockNumbers"
                     ]
 
+                    # print(len(bundle_eval_block_numbers))  # ALWAYS 19
+
                     # Get the block number for this specific chain using its index in the array
                     # The index is configured per chain in the CHAINS config
                     bundle_block_index = chain["bundle_block_index"]
@@ -296,16 +298,14 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
                                 bundle_id,
                                 chain_id,
                                 relayer_refund_root,
-                                start_block,
                                 end_block,
                                 processed_timestamp
-                            ) VALUES (?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?)
                         """,
                             (
                                 bundle_id,
                                 chain_id,
                                 propose_event["args"]["relayerRefundRoot"].hex(),
-                                last_bundle_end_block,  # start block (endblock of last bundleid + 1)
                                 bundle_end_block,
                                 int(time.time()),
                             ),
