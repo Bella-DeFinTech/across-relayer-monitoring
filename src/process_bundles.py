@@ -93,6 +93,9 @@ def get_last_bundle_end_block(bundle_id: int, chain_id: int) -> int:
         The end block represents the block number used for bundle evaluation
         on the specified chain, as determined by the hub contract
     """
+
+    logger.info(f"Getting last bundle end block for bundle {bundle_id} on chain {chain_id}")
+
     conn = get_db_connection()
     if not conn:
         return 0
@@ -203,6 +206,9 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
         This function commits database transactions for successful bundle processing
         and rolls back on errors to maintain data consistency
     """
+
+    logger.info(f"* Processing bundles for chain {chain_id}")
+
     chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
     if not chain:
         logger.error(f"No configuration found for chain {chain_id}")
@@ -217,11 +223,11 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
     )  # Ethereum chain ID is 1
 
     logger.info(
-        f"Processing bundles for chain {chain_id} from bundle {last_bundle_id} "
         f"(Last bundle endblock: {last_bundle_end_block}, last bundle eth endblock: {last_eth_bundle_end_block})"
     )
     try:
         # From eth hub contract, get all ProposeRootBundle events from the last processed bundle endblock
+        # Todo: Pagination
         propose_events = hub_contract.events.ProposeRootBundle.create_filter(
             from_block=last_eth_bundle_end_block
         ).get_all_entries()
