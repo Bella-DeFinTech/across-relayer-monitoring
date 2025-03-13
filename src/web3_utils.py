@@ -5,22 +5,22 @@ Web3 utility functions for blockchain interactions.
 import json
 import logging
 import os
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional, cast
 
 from web3 import Web3
 from web3.contract import Contract
 
-from .config import CHAINS, get_chains, HUB_ADDRESS
+from .config import CHAINS, HUB_ADDRESS, get_chains
 
 logger = logging.getLogger(__name__)
 
 
-def get_hub_contract() -> Contract:
+def get_hub_contract() -> Optional[Contract]:
     """
     Get Web3 contract instance for the Across Hub contract on Ethereum.
 
     Returns:
-        Contract: Web3 contract instance for the hub
+        Optional[Contract]: Web3 contract instance for the hub, or None if initialization fails
     """
     # Load Hub ABI
     hub_abi_path = os.path.join(
@@ -39,11 +39,16 @@ def get_hub_contract() -> Contract:
         return None
 
     try:
-        w3 = Web3(Web3.HTTPProvider(eth_chain["rpc_url"]))
-            
+        rpc_url = cast(str, eth_chain["rpc_url"])
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+
+        hub_address = cast(str, HUB_ADDRESS)
+        if not hub_address:
+            logger.error("Hub contract address not configured")
+            return None
+
         contract = w3.eth.contract(
-            address=Web3.to_checksum_address(HUB_ADDRESS),
-            abi=hub_abi
+            address=Web3.to_checksum_address(hub_address), abi=hub_abi
         )
         return contract
     except Exception as e:
