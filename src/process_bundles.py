@@ -80,13 +80,16 @@ def get_last_bundle_end_block(bundle_id: int, chain_id: int) -> int:
     2. Determine where to resume processing after interruptions
     3. Track bundle evaluation block numbers across chains
     
+    If no bundle exists (end_block = 0), returns the chain's configured start_block
+    as the starting point for processing.
+    
     Args:
         bundle_id: The bundle ID to look up
         chain_id: The numeric ID of the chain to get the end block for
     
     Returns:
         int: The end block number for the bundle if found,
-             or 0 if the bundle doesn't exist or an error occurs
+             or the chain's configured start_block if no bundle exists
     
     Note:
         The end block represents the block number used for bundle evaluation
@@ -104,9 +107,17 @@ def get_last_bundle_end_block(bundle_id: int, chain_id: int) -> int:
         )
         result = cursor.fetchone()
         
-        if result:
+        # Check if we got a result row and if end_block is not None
+        if result is not None and result[0] is not None:
             return result[0]
             
+        # If no bundle exists, get start_block from chain config
+        chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
+        if chain and "start_block" in chain:
+            logger.info(f"No existing bundles found for chain {chain_id}, using start_block from config")
+            return chain["start_block"]
+        
+        logger.error(f"No start_block configured for chain {chain_id}")
         return 0
             
     except Exception as e:
@@ -196,25 +207,15 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
     # Get the last processed bundle id
     last_bundle_id = get_last_processed_bundle(chain_id)
     # Get the end_block for the last processed bundle.
-    last_bundle_end_block = get_last_bundle_end_block(last_bundle_id, chain_id)
+    last_bundle_end_block = get_last_bundle_end_block(last_bundle_id, chain_id) + 1
     last_eth_bundle_end_block = get_last_bundle_end_block(last_bundle_id, 1)  # Ethereum chain ID is 1
-
-    if last_bundle_end_block == 0:
-        # get startblock from chain config
-        start_block = chain["start_block"]
-        logger.info(f"No bundles processed for chain {chain_id}, starting from chain config start block {start_block}")
-
-    if last_eth_bundle_end_block == 0:
-        logger.info(f"Last eth bundle end block set eth chainconfig start block {chain['start_block']}")
-        last_eth_bundle_end_block = CHAINS[1]["start_block"]
 
     logger.info(
         f"Processing bundles for chain {chain_id} from bundle {last_bundle_id} "
         f"(Last bundle endblock: {last_bundle_end_block}, last bundle eth endblock: {last_eth_bundle_end_block})"
     )
-
     try:
-        # From eth hub contract, get all ProposeRootBundle events from the last processed bundle endblock + 1
+        # From eth hub contract, get all ProposeRootBundle events from the last processed bundle endblock
         propose_events = hub_contract.events.ProposeRootBundle.create_filter(
             from_block=last_eth_bundle_end_block
         ).get_all_entries()
@@ -288,7 +289,7 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
                             bundle_id,
                             chain_id,
                             propose_event["args"]["relayerRefundRoot"].hex(),
-                            last_bundle_end_block + 1, # start block (endblock of last bundleid + 1)
+                            last_bundle_end_block, # start block (endblock of last bundleid + 1)
                             bundle_end_block, 
                             int(time.time())
                         ))
