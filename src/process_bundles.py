@@ -196,8 +196,17 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
     # Get the last processed bundle id
     last_bundle_id = get_last_processed_bundle(chain_id)
     # Get the end_block for the last processed bundle.
-    last_bundle_end_block = get_last_bundle_end_block(last_bundle_id, chain_id) + 1
+    last_bundle_end_block = get_last_bundle_end_block(last_bundle_id, chain_id)
     last_eth_bundle_end_block = get_last_bundle_end_block(last_bundle_id, 1)  # Ethereum chain ID is 1
+
+    if last_bundle_end_block == 0:
+        # get startblock from chain config
+        start_block = chain["start_block"]
+        logger.info(f"No bundles processed for chain {chain_id}, starting from chain config start block {start_block}")
+
+    if last_eth_bundle_end_block == 0:
+        logger.info(f"Last eth bundle end block set eth chainconfig start block {chain['start_block']}")
+        last_eth_bundle_end_block = CHAINS[1]["start_block"]
 
     logger.info(
         f"Processing bundles for chain {chain_id} from bundle {last_bundle_id} "
@@ -279,7 +288,7 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
                             bundle_id,
                             chain_id,
                             propose_event["args"]["relayerRefundRoot"].hex(),
-                            last_bundle_end_block, # start block (endblock of last bundleid + 1)
+                            last_bundle_end_block + 1, # start block (endblock of last bundleid + 1)
                             bundle_end_block, 
                             int(time.time())
                         ))
