@@ -28,6 +28,8 @@ BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
+# Hub Contract Address
+HUB_ADDRESS = os.getenv("HUB_ADDRESS")
 # Chain configurations  (3/1/25 blocks for now)
 CHAINS = [
     {
@@ -38,6 +40,7 @@ CHAINS = [
         "api_key": os.getenv("ETH_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ETH_SPOKE_POOL_ADDRESS"),
         "start_block": 21950406,  # The block of the first fill on this chain you want to start monitoring from
+        "bundle_block_index": 0,  # Index in bundleEvaluationBlockNumbers array
     },
     {
         "chain_id": 10,
@@ -47,6 +50,7 @@ CHAINS = [
         "api_key": os.getenv("OP_SCAN_KEY"),
         "spoke_pool_address": os.getenv("OP_SPOKE_POOL_ADDRESS"),
         "start_block": 132848581,  # The block of the first fill on this chain you want to start monitoring from
+        "bundle_block_index": 1,  # Index in bundleEvaluationBlockNumbers array
     },
     {
         "chain_id": 42161,
@@ -56,6 +60,7 @@ CHAINS = [
         "api_key": os.getenv("ARB_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ARB_SPOKE_POOL_ADDRESS"),
         "start_block": 311048309,  # The block of the first fill on this chain you want to start monitoring from
+        "bundle_block_index": 4,  # Index in bundleEvaluationBlockNumbers array
     },
     {
         "chain_id": 8453,
@@ -65,6 +70,7 @@ CHAINS = [
         "api_key": os.getenv("BASE_SCAN_KEY"),
         "spoke_pool_address": os.getenv("BASE_SPOKE_POOL_ADDRESS"),
         "start_block": 27011711,  # The block of the first fill on this chain you want to start monitoring from
+        "bundle_block_index": 6,  # Index in bundleEvaluationBlockNumbers array
     },
 ]
 

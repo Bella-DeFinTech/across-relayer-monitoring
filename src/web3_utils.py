@@ -10,9 +10,45 @@ from typing import Any, Dict, cast
 from web3 import Web3
 from web3.contract import Contract
 
-from .config import CHAINS, get_chains
+from .config import CHAINS, get_chains, HUB_ADDRESS
 
 logger = logging.getLogger(__name__)
+
+
+def get_hub_contract() -> Contract:
+    """
+    Get Web3 contract instance for the Across Hub contract on Ethereum.
+
+    Returns:
+        Contract: Web3 contract instance for the hub
+    """
+    # Load Hub ABI
+    hub_abi_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "abi", "hub_abi.json"
+    )
+    try:
+        with open(hub_abi_path, "r") as file:
+            hub_abi = json.load(file)
+    except FileNotFoundError:
+        logger.error(f"Could not find Hub ABI file at {hub_abi_path}")
+        return None
+
+    eth_chain = next((c for c in CHAINS if c["chain_id"] == 1), None)
+    if not eth_chain:
+        logger.error("Ethereum chain configuration not found")
+        return None
+
+    try:
+        w3 = Web3(Web3.HTTPProvider(eth_chain["rpc_url"]))
+            
+        contract = w3.eth.contract(
+            address=Web3.to_checksum_address(HUB_ADDRESS),
+            abi=hub_abi
+        )
+        return contract
+    except Exception as e:
+        logger.error(f"Error initializing hub contract: {str(e)}")
+        return None
 
 
 def get_spokepool_contracts() -> Dict[int, Contract]:
