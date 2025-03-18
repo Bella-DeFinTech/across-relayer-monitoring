@@ -21,6 +21,8 @@ from src.process_returns import process_returns
 from src.discover_routes import discover_routes
 from src.collect_fills import collect_fills
 from src.enrich_fills import enrich_fills
+from src.process_repayments import process_repayments
+
 
 # Configure logging
 logging.basicConfig(
@@ -64,6 +66,11 @@ def main():
         logger.info("=" * 80)
         logger.info("Processing bundles")
         process_bundles()
+
+        # Process bundle repayments and update the database
+        logger.info("=" * 80)
+        logger.info("Processing bundle repayments")
+        process_repayments()
 
         # Calculate profit metrics
         # logger.info("Calculating profit metrics")

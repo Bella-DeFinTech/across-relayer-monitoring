@@ -156,6 +156,25 @@ def init_db():
             PRIMARY KEY (bundle_id, chain_id),
             FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
         );
+
+        CREATE TABLE IF NOT EXISTS BundleReturn (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bundle_id INTEGER NOT NULL,
+            chain_id INTEGER NOT NULL,
+            token_address TEXT NOT NULL,
+            token_symbol TEXT NOT NULL,
+            input_amount DECIMAL(36,18) NOT NULL DEFAULT 0,
+            return_amount DECIMAL(36,18) NOT NULL DEFAULT 0,
+            lp_fee DECIMAL(36,18) NOT NULL DEFAULT 0,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER NOT NULL,
+            fill_tx_hashes TEXT,  -- Comma-separated list of fill transaction hashes
+            return_tx_hash TEXT,  -- Single transaction hash for the return
+            relayer_refund_root TEXT,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (bundle_id, chain_id) REFERENCES Bundle(bundle_id, chain_id),
+            UNIQUE(bundle_id, chain_id, token_address)
+        );
         """)
 
         # Insert chain data
