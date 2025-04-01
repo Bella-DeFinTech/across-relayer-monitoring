@@ -22,6 +22,7 @@ from src.discover_routes import discover_routes
 from src.collect_fills import collect_fills
 from src.enrich_fills import enrich_fills
 from src.process_repayments import process_repayments
+from src.reporting_utils import generate_reports
 
 
 # Configure logging

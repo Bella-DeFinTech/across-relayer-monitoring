@@ -17,6 +17,7 @@ import sqlite3
 from collections import defaultdict
 
 from src.db_utils import get_db_connection, execute_query
+from src.web3_utils import get_block_timestamp
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def find_active_tokens(cursor: sqlite3.Cursor, chain_id: int) -> Set[Tuple[str, 
     logger.info(f"Found {len(tokens)} active tokens for chain {chain_id}")
     return tokens
 
-def get_bundle_fills(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, token_address: str) -> List[Dict]:
+def get_bundle_fills(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, token_address: str) -> Tuple[List[Dict], int, int]:
     """
     Get all fills that belong to this bundle for a specific token.
     A fill belongs to a bundle if:
@@ -63,7 +64,10 @@ def get_bundle_fills(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, toke
         token_address: Token address to filter fills
         
     Returns:
-        List of fill records with input_amount, lp_fee, tx_hash, tx_timestamp
+        Tuple of:
+        - List of fill records with input_amount, lp_fee, tx_hash, tx_timestamp
+        - Start block number
+        - End block number
     """
     logger.debug(f"Getting fills for bundle {bundle_id} chain {chain_id} token {token_address}")
     
@@ -83,7 +87,9 @@ def get_bundle_fills(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, toke
             f.input_amount,
             f.lp_fee,
             f.tx_hash,
-            f.tx_timestamp
+            f.tx_timestamp,
+            bundle_info.prev_end_block + 1 as start_block,
+            bundle_info.end_block as end_block
         FROM Fill f, bundle_info
         WHERE f.repayment_chain_id = ?
         AND f.output_token = ?
@@ -93,9 +99,51 @@ def get_bundle_fills(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, toke
         ORDER BY f.block_number ASC
     """, (bundle_id, chain_id, chain_id, token_address))
     
-    fills = [dict(row) for row in cursor.fetchall()]
+    rows = cursor.fetchall()
+    if not rows:
+        return [], 0, 0
+        
+    # All rows have same start/end block
+    fills = [{
+        'input_amount': row[0],
+        'lp_fee': row[1],
+        'tx_hash': row[2],
+        'tx_timestamp': row[3]
+    } for row in rows]
+    
+    start_block = rows[0][4]
+    end_block = rows[0][5]
+    
     logger.debug(f"Found {len(fills)} fills for bundle {bundle_id}")
-    return fills
+    return fills, start_block, end_block
+
+def get_bundle_returns(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, token_address: str) -> List[Dict]:
+    """
+    Get all returns for a specific bundle and token.
+    
+    Args:
+        cursor: Database cursor
+        bundle_id: Bundle ID to get returns for
+        chain_id: Chain ID
+        token_address: Token address
+        
+    Returns:
+        List of return records with return_amount, tx_hash
+    """
+    cursor.execute("""
+        SELECT 
+            r.return_amount,
+            r.tx_hash
+        FROM Return r
+        WHERE r.return_chain_id = ?
+        AND r.return_token = ?
+        AND r.root_bundle_id = ?
+        ORDER BY r.block_number ASC
+    """, (chain_id, token_address, bundle_id))
+    
+    returns = [dict(row) for row in cursor.fetchall()]
+    logger.debug(f"Found {len(returns)} returns for bundle {bundle_id}")
+    return returns
 
 def find_unprocessed_bundles(cursor: sqlite3.Cursor) -> List[Dict]:
     """
@@ -132,34 +180,6 @@ def find_unprocessed_bundles(cursor: sqlite3.Cursor) -> List[Dict]:
     
     return bundles
 
-def get_bundle_returns(cursor: sqlite3.Cursor, bundle_id: int, chain_id: int, token_address: str) -> List[Dict]:
-    """
-    Get all returns for a specific bundle and token.
-    
-    Args:
-        cursor: Database cursor
-        bundle_id: Bundle ID to get returns for
-        chain_id: Chain ID
-        token_address: Token address
-        
-    Returns:
-        List of return records with return_amount, tx_hash
-    """
-    cursor.execute("""
-        SELECT 
-            r.return_amount,
-            r.tx_hash
-        FROM Return r
-        WHERE r.return_chain_id = ?
-        AND r.return_token = ?
-        AND r.root_bundle_id = ?
-        ORDER BY r.block_number ASC
-    """, (chain_id, token_address, bundle_id))
-    
-    returns = [dict(row) for row in cursor.fetchall()]
-    logger.debug(f"Found {len(returns)} returns for bundle {bundle_id}")
-    return returns
-
 def process_bundle(cursor: sqlite3.Cursor, bundle: Dict, active_tokens: Set[Tuple[str, str]]) -> None:
     """
     Process a single bundle:
@@ -173,11 +193,11 @@ def process_bundle(cursor: sqlite3.Cursor, bundle: Dict, active_tokens: Set[Tupl
         bundle: Bundle info dict with bundle_id, chain_id, etc
         active_tokens: Set of (token_address, token_symbol) tuples for this chain
     """
-    logger.info(f"Processing bundle {bundle['bundle_id']} on chain {bundle['chain_id']}")
+    # logger.info(f"Processing bundle {bundle['bundle_id']} on chain {bundle['chain_id']}")
     
     for token_address, token_symbol in active_tokens:
         # Get all fills for this bundle and token
-        fills = get_bundle_fills(
+        fills, start_block, end_block = get_bundle_fills(
             cursor, 
             bundle['bundle_id'], 
             bundle['chain_id'], 
@@ -200,11 +220,14 @@ def process_bundle(cursor: sqlite3.Cursor, bundle: Dict, active_tokens: Set[Tupl
         total_lp_fee = sum(Decimal(f['lp_fee'] or 0) for f in fills)  # lp_fee might be NULL
         total_return = sum(Decimal(r['return_amount']) for r in returns)
         
-        # Get time range
-        start_time = min(f['tx_timestamp'] for f in fills)
-        end_time = max(f['tx_timestamp'] for f in fills)
+        # Get timestamps from blocks
+        start_time = get_block_timestamp(bundle['chain_id'], start_block)
+        end_time = get_block_timestamp(bundle['chain_id'], end_block)
         
         # Insert into BundleReturn
+        fill_tx_hashes = ','.join(f['tx_hash'] for f in fills)
+        return_tx_hash = returns[0]['tx_hash'] if returns else None
+        
         cursor.execute("""
             INSERT INTO BundleReturn (
                 bundle_id,
@@ -214,13 +237,14 @@ def process_bundle(cursor: sqlite3.Cursor, bundle: Dict, active_tokens: Set[Tupl
                 input_amount,
                 return_amount,
                 lp_fee,
+                start_block,
+                end_block,
                 start_time,
                 end_time,
                 fill_tx_hashes,
                 return_tx_hash,
-                relayer_refund_root,
-                created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                relayer_refund_root
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             bundle['bundle_id'],
             bundle['chain_id'],
@@ -229,19 +253,19 @@ def process_bundle(cursor: sqlite3.Cursor, bundle: Dict, active_tokens: Set[Tupl
             str(total_input),
             str(total_return),
             str(total_lp_fee),
+            start_block,
+            end_block,
             start_time,
             end_time,
-            ','.join(f['tx_hash'] for f in fills),
-            returns[0]['tx_hash'] if returns else None,
-            bundle['relayer_refund_root'],
-            int(datetime.now().timestamp())
+            fill_tx_hashes,
+            return_tx_hash,
+            bundle['relayer_refund_root']
         ))
         
-        logger.info(
-            f"Bundle {bundle['bundle_id']} chain {bundle['chain_id']} token {token_symbol}: "
-            f"input={total_input} return={total_return} lp_fee={total_lp_fee} "
-            f"fills={len(fills)} returns={len(returns)}"
-        )
+        # logger.info(
+            # f"Processed bundle {bundle['bundle_id']} token {token_symbol}: "
+            # f"input={total_input}, return={total_return}, lp_fee={total_lp_fee}"
+        # )
 
 def process_repayments() -> None:
     """

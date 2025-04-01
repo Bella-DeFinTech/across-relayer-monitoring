@@ -6,14 +6,14 @@ including environment variables, database connections, and chain information.
 """
 
 import os
-
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv(override=True)
 
 # Database configuration
-DB_FILE = os.getenv("DB_FILE")
+DB_FILE = os.getenv("DB_FILE", "relayer_monitoring.db")
+RETURN_DATA_FILE = os.getenv("RETURN_DATA_FILE", "return_data.xlsx")
 
 # Relayer configuration
 RELAYER_ADDRESS = os.getenv("RELAYER_ADDRESS")
@@ -76,7 +76,7 @@ CHAINS = [
 
 # Logging configuration
 LOGGING_CONFIG = {
-    "level": "INFO",
+    "level": os.getenv("LOG_LEVEL", "INFO"),
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 }
 
