@@ -172,7 +172,6 @@ class TestInitDb(unittest.TestCase):
                 bundle_id INTEGER NOT NULL,
                 chain_id INTEGER NOT NULL,
                 relayer_refund_root TEXT NOT NULL,
-                start_block INTEGER NOT NULL,
                 end_block INTEGER NOT NULL,
                 processed_timestamp INTEGER,
                 PRIMARY KEY (bundle_id, chain_id),
@@ -224,6 +223,7 @@ class TestInitDb(unittest.TestCase):
             "Fill",
             "Return",
             "Bundle",
+            "BundleReturn",
             "sqlite_sequence",
         }
         self.assertEqual(expected_tables, tables)
@@ -290,7 +290,6 @@ class TestInitDb(unittest.TestCase):
         self.assertEqual(columns["bundle_id"], "INTEGER")
         self.assertEqual(columns["chain_id"], "INTEGER")
         self.assertEqual(columns["relayer_refund_root"], "TEXT")
-        self.assertEqual(columns["start_block"], "INTEGER")
         self.assertEqual(columns["end_block"], "INTEGER")
         self.assertEqual(columns["processed_timestamp"], "INTEGER")
 
@@ -326,6 +325,7 @@ class TestInitDb(unittest.TestCase):
             "Fill",
             "Return",
             "Bundle",
+            "BundleReturn",
             "sqlite_sequence",
         }
         self.assertEqual(expected_tables, tables)

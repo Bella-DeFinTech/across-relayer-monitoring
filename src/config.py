@@ -6,6 +6,7 @@ including environment variables, database connections, and chain information.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables

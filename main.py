@@ -15,15 +15,14 @@ This script orchestrates the entire process flow, including:
 import logging
 import sys
 
-from src.process_bundles import process_bundles
-from src.init_db import init_db
-from src.process_returns import process_returns
-from src.discover_routes import discover_routes
 from src.collect_fills import collect_fills
+from src.discover_routes import discover_routes
 from src.enrich_fills import enrich_fills
+from src.init_db import init_db
+from src.process_bundles import process_bundles
 from src.process_repayments import process_repayments
+from src.process_returns import process_returns
 from src.reporting_utils import generate_reports
-
 
 # Configure logging
 logging.basicConfig(
@@ -78,8 +77,8 @@ def main():
         # calculate_profit_metrics()
 
         # Generate reports
-        # logger.info("Generating reports")
-        # generate_reports()
+        logger.info("Generating reports")
+        generate_reports()
 
         logger.info("Process completed successfully")
 

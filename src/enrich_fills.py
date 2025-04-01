@@ -243,10 +243,10 @@ async def get_lp_fee(
                 if response.status == 200:
                     data = await response.json()
                     return str(data["lpFee"]["total"])
-                
+
                 # If not last attempt, prepare for retry
                 if attempt < max_retries:
-                    delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                    delay = initial_delay * (2**attempt)  # Exponential backoff
                     logger.warning(
                         f"API request failed with status {response.status}. "
                         f"Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
@@ -258,17 +258,19 @@ async def get_lp_fee(
                         f"after {max_retries} retries"
                     )
                     return None
-                    
+
         except Exception as e:
             if attempt < max_retries:
-                delay = initial_delay * (2 ** attempt)
+                delay = initial_delay * (2**attempt)
                 logger.warning(
                     f"Error retrieving LP fee: {str(e)}. "
                     f"Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
                 )
                 await asyncio.sleep(delay)
             else:
-                logger.error(f"Error retrieving LP fee after {max_retries} retries: {str(e)}")
+                logger.error(
+                    f"Error retrieving LP fee after {max_retries} retries: {str(e)}"
+                )
                 return None
 
     return None  # Should never reach here, but keeps mypy happy

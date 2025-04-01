@@ -94,7 +94,9 @@ def get_last_bundle_end_block(bundle_id: int, chain_id: int) -> int:
         on the specified chain, as determined by the hub contract
     """
 
-    logger.info(f"Getting last bundle end block for bundle {bundle_id} on chain {chain_id}")
+    logger.info(
+        f"Getting last bundle end block for bundle {bundle_id} on chain {chain_id}"
+    )
 
     conn = get_db_connection()
     if not conn:
