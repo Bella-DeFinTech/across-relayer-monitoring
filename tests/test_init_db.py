@@ -179,6 +179,59 @@ class TestInitDb(unittest.TestCase):
             )
         """)
 
+        # Create BundleReturn table
+        cursor.execute("""
+            CREATE TABLE BundleReturn (
+                bundle_id INTEGER NOT NULL,
+                chain_id INTEGER NOT NULL,
+                token_address TEXT NOT NULL,
+                token_symbol TEXT NOT NULL,
+                input_amount DECIMAL(36,18) NOT NULL DEFAULT 0,
+                return_amount DECIMAL(36,18) NOT NULL DEFAULT 0,
+                lp_fee DECIMAL(36,18) NOT NULL DEFAULT 0,
+                start_block INTEGER NOT NULL,
+                end_block INTEGER NOT NULL,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                fill_tx_hashes TEXT,
+                return_tx_hash TEXT,
+                relayer_refund_root TEXT,
+                created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                PRIMARY KEY (bundle_id, chain_id, token_address),
+                FOREIGN KEY (chain_id) REFERENCES Chain(chain_id),
+                FOREIGN KEY (token_address, chain_id) REFERENCES Token(token_address, chain_id)
+            )
+        """)
+
+        # Create TokenPrice table
+        cursor.execute("""
+            CREATE TABLE TokenPrice (
+                date DATE,
+                token_symbol TEXT,
+                price_usd DECIMAL,
+                PRIMARY KEY (date, token_symbol)
+            )
+        """)
+
+        # Create DailyProfit table
+        cursor.execute("""
+            CREATE TABLE DailyProfit (
+                date DATE,
+                chain_id INTEGER,
+                token_symbol TEXT,
+                input_amount DECIMAL,
+                output_amount DECIMAL,
+                lp_fee DECIMAL,
+                gas_fee_eth DECIMAL,
+                gas_fee_usd DECIMAL,
+                total_fills INTEGER,
+                successful_fills INTEGER,
+                profit_usd DECIMAL,
+                PRIMARY KEY (date, chain_id, token_symbol),
+                FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+            )
+        """)
+
         conn.commit()
         conn.close()
 
@@ -224,6 +277,8 @@ class TestInitDb(unittest.TestCase):
             "Return",
             "Bundle",
             "BundleReturn",
+            "TokenPrice",
+            "DailyProfit",
             "sqlite_sequence",
         }
         self.assertEqual(expected_tables, tables)
@@ -326,6 +381,8 @@ class TestInitDb(unittest.TestCase):
             "Return",
             "Bundle",
             "BundleReturn",
+            "TokenPrice",
+            "DailyProfit",
             "sqlite_sequence",
         }
         self.assertEqual(expected_tables, tables)

@@ -110,7 +110,29 @@ CREATE TABLE BundleReturn (
     UNIQUE(bundle_id, chain_id, token_address)
 );
 
-```
+
+CREATE TABLE TokenPrice (
+    date DATE,
+    token_symbol TEXT,
+    price_usd DECIMAL,
+    PRIMARY KEY (date, token_symbol)
+)
+
+CREATE TABLE DailyProfit (
+    date DATE,
+    chain_id INTEGER,
+    token_symbol TEXT,
+    input_amount DECIMAL,
+    output_amount DECIMAL,
+    lp_fee DECIMAL,
+    gas_fee_eth DECIMAL,
+    gas_fee_usd DECIMAL,
+    total_fills INTEGER,
+    successful_fills INTEGER,
+    profit_usd DECIMAL,
+    PRIMARY KEY (date, chain_id, token_symbol),
+    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+)
 
 ## Return Design 
 
@@ -196,5 +218,3 @@ event FilledRelay(
 
 To compute LP fee, we need to get the deposit timestamp (quoteTimestamp) from the FundsDeposited event. 
 We can find the correct FundsDeposited event by matching on the depositId. 
-
-

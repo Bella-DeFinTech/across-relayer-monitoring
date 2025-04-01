@@ -77,13 +77,14 @@ def main():
         # calculate_profit_metrics()
 
         # Generate reports
+        logger.info("=" * 80)
         logger.info("Generating reports")
         generate_reports()
 
         logger.info("Process completed successfully")
 
     except Exception as e:
-        logger.error(f"Error in main process: {e}", exc_info=True)
+        logger.error(f"Error in main process: {str(e)}", exc_info=True)
         sys.exit(1)
 
 

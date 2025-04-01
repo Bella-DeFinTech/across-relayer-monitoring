@@ -177,6 +177,30 @@ def init_db():
             FOREIGN KEY (chain_id) REFERENCES Chain(chain_id),
             FOREIGN KEY (token_address, chain_id) REFERENCES Token(token_address, chain_id)
         );
+
+        -- New tables for profit tracking
+        CREATE TABLE IF NOT EXISTS TokenPrice (
+            date DATE,
+            token_symbol TEXT,
+            price_usd DECIMAL,
+            PRIMARY KEY (date, token_symbol)
+        );
+
+        CREATE TABLE IF NOT EXISTS DailyProfit (
+            date DATE,
+            chain_id INTEGER,
+            token_symbol TEXT,
+            input_amount DECIMAL,
+            output_amount DECIMAL,
+            lp_fee DECIMAL,
+            gas_fee_eth DECIMAL,
+            gas_fee_usd DECIMAL,
+            total_fills INTEGER,
+            successful_fills INTEGER,
+            profit_usd DECIMAL,
+            PRIMARY KEY (date, chain_id, token_symbol),
+            FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+        );
         """)
 
         # Insert chain data
