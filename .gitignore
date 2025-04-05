@@ -50,6 +50,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Project-specific
+capital_config.yaml
+
 # custom
 .env
 .venv/

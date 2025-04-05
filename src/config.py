@@ -29,6 +29,16 @@ BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
+# Token configuration
+COINGECKO_SYMBOL_MAP = {
+    "ETH": "ethereum",
+    "USDC": "usd-coin",
+    "DAI": "dai",
+    "USDT": "tether",
+    "WETH": "weth",
+    "WBTC": "wrapped-bitcoin"
+}
+
 # Hub Contract Address
 HUB_ADDRESS = os.getenv("HUB_ADDRESS")
 # Chain configurations  (3/1/25 blocks for now)
