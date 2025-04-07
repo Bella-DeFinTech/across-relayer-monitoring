@@ -33,3 +33,19 @@ ruff check # check linting
 ruff check --fix # fix linting
 ruff check --fix --unsafe-fixes # fix linting with unsafe fixes
 ```
+
+## Calc Daily 
+calc_daily.py Output (per chain_token sheet):
+Date (YYYYMMDD format)
+Total Input Amount
+Total Output Amount
+Total LP Fee
+Total Gas Fee (in ETH)
+Total Gas Fee (in USD)
+Total Orders
+Successful Orders
+Token Price
+ETH Price
+Profit (in USD)
+LP Fee (in USD)
+Gas Fee (in USD)

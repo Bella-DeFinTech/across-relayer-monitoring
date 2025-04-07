@@ -24,6 +24,7 @@ from src.process_repayments import process_repayments
 from src.process_returns import process_returns
 from src.reporting_utils import generate_reports
 from src.update_token_prices import update_token_prices
+from src.calculate_daily_profits import calculate_daily_profits
 
 # Configure logging
 logging.basicConfig(
@@ -68,25 +69,21 @@ def main():
         # logger.info("Processing bundles")
         # process_bundles()
 
-        # # Update token prices in the database
-        # logger.info("=" * 80)
-        # logger.info("Updating token prices")
-        # update_token_prices()
-
         # # Process bundle repayments and update the database
         # logger.info("=" * 80)
         # logger.info("Processing bundle repayments")
         # process_repayments()
-
 
         # Update token prices in the database
         logger.info("=" * 80)
         logger.info("Updating token prices")
         update_token_prices()
 
-        # Calculate profit metrics
-        # logger.info("Calculating profit metrics")
-        # calculate_profit_metrics()
+        # Calculate daily profits
+        logger.info("=" * 80)
+        logger.info("Calculating daily profits")
+        calculate_daily_profits()
+
 
         # # Generate reports
         # logger.info("=" * 80)
