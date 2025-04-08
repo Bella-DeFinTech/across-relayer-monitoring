@@ -150,7 +150,7 @@ bundle_id: TEXT
         uint256 amountToReturn,
         uint256 indexed chainId,
         uint256[] refundAmounts,
-        uint32 indexed rootBundleId,
+        uint32 indexed root BundleId,
         uint32 indexed leafId,
         address l2TokenAddress,
         address[] refundAddresses,

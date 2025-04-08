@@ -74,21 +74,20 @@ def main():
         # logger.info("Processing bundle repayments")
         # process_repayments()
 
-        # Update token prices in the database
-        logger.info("=" * 80)
-        logger.info("Updating token prices")
-        update_token_prices()
-
-        # Calculate daily profits
-        logger.info("=" * 80)
-        logger.info("Calculating daily profits")
-        calculate_daily_profits()
-
-
-        # # Generate reports
+        # # Update token prices in the database
         # logger.info("=" * 80)
-        # logger.info("Generating reports")
-        # generate_reports()
+        # logger.info("Updating token prices")
+        # update_token_prices()
+
+        # # Calculate daily profits
+        # logger.info("=" * 80)
+        # logger.info("Calculating daily profits")
+        # calculate_daily_profits()
+
+        # Generate reports
+        logger.info("=" * 80)
+        logger.info("Generating reports")
+        generate_reports()
 
         logger.info("Process completed successfully")
 

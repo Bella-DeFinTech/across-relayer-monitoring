@@ -92,8 +92,17 @@ def update_token_prices():
         try:
             # Update prices for each token, for each date
             current_date = start_date
+            total_existing = 0
+            total_updated = 0
+            total_failed = 0
+            
+            # For tracking consecutive days with same number of skipped prices
+            skip_streak_start = None
+            last_skip_count = 0
+            
             while current_date <= end_date:
                 date_str = current_date.strftime("%d-%m-%Y")
+                existing_count = 0
                 
                 for token_symbol, coingecko_id in COINGECKO_SYMBOL_MAP.items():
                     # Check if price exists
@@ -103,7 +112,8 @@ def update_token_prices():
                     )
 
                     if cursor.fetchone():
-                        logger.info(f"Price for {token_symbol} on {date_str} already exists")
+                        existing_count += 1
+                        total_existing += 1
                         continue
                         
                     # Get and store new price
@@ -117,14 +127,40 @@ def update_token_prices():
                         )
                         logger.info(f"Stored price for {token_symbol} on {date_str}: {price}")
                         conn.commit()
+                        total_updated += 1
                     else:
                         logger.error(f"Failed to get price for {token_symbol} on {date_str}")
+                        total_failed += 1
                     
                     # Sleep briefly between tokens to avoid rate limits
                     time.sleep(1)
                 
-                current_date += timedelta(days=1)
+                # Handle logging of skipped prices
+                if existing_count > 0:
+                    if existing_count == last_skip_count:
+                        if skip_streak_start is None:
+                            skip_streak_start = current_date
+                    else:
+                        if skip_streak_start is not None:
+                            streak_days = (current_date - skip_streak_start).days
+                            if streak_days > 0:
+                                logger.info(f"Skipped {last_skip_count} existing prices per day for {streak_days} days ({skip_streak_start.strftime('%d-%m-%Y')} to {(current_date - timedelta(days=1)).strftime('%d-%m-%Y')})")
+                        skip_streak_start = current_date
+                        last_skip_count = existing_count
                 
+                current_date += timedelta(days=1)
+            
+            # Log final streak if any
+            if skip_streak_start is not None:
+                streak_days = (current_date - skip_streak_start).days
+                if streak_days > 0:
+                    logger.info(f"Skipped {last_skip_count} existing prices per day for {streak_days} days ({skip_streak_start.strftime('%d-%m-%Y')} to {(current_date - timedelta(days=1)).strftime('%d-%m-%Y')})")
+            
+            # Log final summary
+            logger.info("Price update summary:")
+            logger.info(f"  - {total_existing} prices already existed")
+            logger.info(f"  - {total_updated} prices updated")
+            logger.info(f"  - {total_failed} price updates failed")
             logger.info("Successfully updated historical token prices")
             
         finally:

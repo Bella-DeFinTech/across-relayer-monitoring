@@ -3,8 +3,9 @@ Utilities for generating reports from the relayer monitoring database.
 
 This module provides functions to:
 1. Query BundleReturn data and generate Excel reports
-2. Calculate metrics and summaries
-3. Export data in various formats
+2. Query DailyProfit data and generate Excel reports
+3. Calculate metrics and summaries
+4. Export data in various formats
 
 To run this file directly: python3 -m src.reporting_utils
 """
@@ -12,11 +13,11 @@ To run this file directly: python3 -m src.reporting_utils
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 import pandas as pd
 
-from .config import RETURN_DATA_FILE
+from .config import RETURN_DATA_FILE, DAILY_COUNT_FILE
 from .db_utils import get_db_connection
 
 # Configure logging
@@ -36,55 +37,6 @@ def format_time_elapsed(seconds: float) -> str:
     else:
         days = seconds / 86400
         return f"{days:.1f} days"
-
-
-def get_bundle_returns_df(
-    cursor: sqlite3.Cursor, chain_id: Optional[int] = None
-) -> pd.DataFrame:
-    """
-    Get BundleReturn data as a DataFrame.
-
-    Args:
-        cursor: Database cursor
-        chain_id: Optional chain ID to filter by
-
-    Returns:
-        DataFrame with bundle return data
-    """
-    query = """
-        SELECT 
-            br.bundle_id,
-            br.chain_id as chain,
-            br.token_symbol as token,
-            br.return_tx_hash as tx_hash,
-            br.input_amount,
-            br.return_amount,
-            br.lp_fee,
-            br.return_amount + br.lp_fee as 'return + lp',
-            br.return_amount - br.input_amount as 'repayment difference',
-            br.start_block,
-            br.end_block,
-            datetime(br.start_time, 'unixepoch') as start_time,
-            datetime(br.end_time, 'unixepoch') as end_time,
-            (br.end_time - br.start_time) as time_elapsed,
-            br.fill_tx_hashes as tx_hashs,
-            br.relayer_refund_root
-        FROM BundleReturn br
-        {where_clause}
-        ORDER BY br.bundle_id DESC
-    """
-
-    where_clause = "WHERE br.chain_id = ?" if chain_id else ""
-    params = (chain_id,) if chain_id else ()
-
-    cursor.execute(query.format(where_clause=where_clause), params)
-    columns = [desc[0] for desc in cursor.description]
-    data = cursor.fetchall()
-
-    df = pd.DataFrame(data, columns=columns)
-    df["time_elapsed"] = df["time_elapsed"].apply(format_time_elapsed)
-
-    return df
 
 
 def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
@@ -117,10 +69,6 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
                 f"No data found{' for chain ' + str(chain_id) if chain_id else ''}"
             )
             return
-
-        # Ensure output directory exists
-        output_dir = Path(RETURN_DATA_FILE).parent
-        output_dir.mkdir(parents=True, exist_ok=True)
 
         # Write to Excel
         mode = "a" if Path(RETURN_DATA_FILE).exists() else "w"
@@ -172,9 +120,145 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
     except Exception as e:
         logger.error(f"Error writing bundle returns to Excel: {e}")
         raise
+
     finally:
         if "conn" in locals():
             conn.close()
+
+
+def get_daily_profits_df(cursor: sqlite3.Cursor, chain_id: int, token_symbol: str) -> pd.DataFrame:
+    """
+    Get daily profit data for a specific chain and token.
+
+    Args:
+        cursor: Database cursor
+        chain_id: Chain ID to filter by
+        token_symbol: Token symbol to filter by
+
+    Returns:
+        DataFrame with daily profit data
+    """
+    query = """
+        SELECT 
+            date(dp.date) as Date,
+            dp.profit_usd as 'Profit(USD)',
+            dp.total_fills as 'Total Fill Orders',
+            dp.successful_fills as 'Successful Orders',
+            dp.input_amount as 'Total Input Amount',
+            dp.output_amount as 'Total Output Amount',
+            dp.lp_fee as 'Total LP Fee',
+            dp.lp_fee * tp.price_usd as 'Total LP Fee(USD)',
+            dp.gas_fee_eth as 'Total Gas Fee',
+            dp.gas_fee_usd as 'Total Gas Fee(USD)',
+            dp.gas_fee_eth as 'Total Gas Fee(ETH)',
+            tp.price_usd as 'Token Price',
+            eth_price.price_usd as 'ETH Price'
+        FROM DailyProfit dp
+        JOIN TokenPrice tp ON dp.date = tp.date 
+            AND dp.token_symbol = tp.token_symbol
+        JOIN TokenPrice eth_price ON dp.date = eth_price.date 
+            AND eth_price.token_symbol = 'ETH'
+        WHERE dp.chain_id = ? AND dp.token_symbol = ?
+        ORDER BY dp.date DESC
+    """
+    
+    cursor.execute(query, (chain_id, token_symbol))
+    columns = [desc[0] for desc in cursor.description]
+    data = cursor.fetchall()
+    
+    return pd.DataFrame(data, columns=columns)
+
+
+def get_chain_token_pairs(cursor: sqlite3.Cursor) -> List[Dict[str, Any]]:
+    """
+    Get all unique chain-token pairs from DailyProfit table.
+
+    Args:
+        cursor: Database cursor
+
+    Returns:
+        List of dicts with chain_id and token_symbol
+    """
+    query = """
+        SELECT DISTINCT chain_id, token_symbol
+        FROM DailyProfit
+        ORDER BY chain_id, token_symbol
+    """
+    
+    cursor.execute(query)
+    return [{"chain_id": row[0], "token_symbol": row[1]} for row in cursor.fetchall()]
+
+
+def write_daily_profits_excel() -> None:
+    """
+    Write daily profit data to Excel file.
+    Creates one sheet per chain-token combination.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get all chain-token pairs
+        pairs = get_chain_token_pairs(cursor)
+        if not pairs:
+            logger.warning("No daily profit data found")
+            return
+
+        # Prepare summary data
+        summary_data = []
+
+        # Write to Excel
+        with pd.ExcelWriter(DAILY_COUNT_FILE) as writer:
+            # Create a sheet for each chain-token pair
+            for pair in pairs:
+                chain_id = pair["chain_id"]
+                token_symbol = pair["token_symbol"]
+                sheet_name = f"{chain_id}_{token_symbol.lower()}"
+                
+                # Get data for this pair
+                df = get_daily_profits_df(cursor, chain_id, token_symbol)
+                if not df.empty:
+                    # Calculate totals
+                    total_profit = df['Profit(USD)'].sum()
+                    total_lp = df['Total LP Fee(USD)'].sum()
+                    total_gas = df['Total Gas Fee(USD)'].sum()
+                    
+                    # Add totals row
+                    # totals = pd.Series({
+                    #     'Date': 'Total',
+                    #     'Profit(USD)': total_profit,
+                    #     'Total LP Fee(USD)': total_lp,
+                    #     'Total Gas Fee(USD)': total_gas
+                    # })
+                    # df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+                    
+                    # Write to sheet
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    
+                    # Add to summary
+                    summary_data.append([
+                        f"{chain_id}-{token_symbol}",
+                        total_profit,
+                        total_lp,
+                        total_gas
+                    ])
+            
+            # Create summary sheet
+            if summary_data:
+                summary_df = pd.DataFrame(
+                    summary_data,
+                    columns=['Chain-Token', 'Total Profit(USD)', 'Total LP Fee(USD)', 'Total Gas Fee(USD)']
+                )
+                summary_df.to_excel(writer, sheet_name='Summary', index=False)
+
+        logger.info(f"Daily profit data written to {DAILY_COUNT_FILE}")
+
+    except Exception as e:
+        logger.error(f"Error writing daily profits to Excel: {e}")
+        raise
+
+    finally:
+        conn.close()
 
 
 def get_bundle_return_summary() -> pd.DataFrame:
@@ -207,7 +291,6 @@ def get_bundle_return_summary() -> pd.DataFrame:
             GROUP BY chain_id, token_symbol
             ORDER BY chain_id, token_symbol
         """)
-
         columns = [desc[0] for desc in cursor.description]
         data = cursor.fetchall()
         df = pd.DataFrame(data, columns=columns)
@@ -247,15 +330,15 @@ def get_bundle_return_summary() -> pd.DataFrame:
             conn.close()
 
 
-def generate_reports():
+def generate_reports() -> None:
+    """Generate all reports."""
+    logger.info("Generating bundle return reports")
     write_bundle_returns_excel()
+    
+    logger.info("Generating daily profit reports")
+    write_daily_profits_excel()
 
 
 if __name__ == "__main__":
     # Example usage
     generate_reports()
-
-    # Get and display summary
-    # summary = get_bundle_return_summary()
-    # print("\nBundle Return Summary:")
-    # print(summary.to_string())
