@@ -139,30 +139,38 @@ def get_daily_profits_df(cursor: sqlite3.Cursor, chain_id: int, token_symbol: st
         DataFrame with daily profit data
     """
     query = """
+        WITH RECURSIVE dates(date) AS (
+            SELECT MIN(date) FROM DailyProfit
+            UNION ALL
+            SELECT date(date, '+1 day')
+            FROM dates
+            WHERE date < (SELECT MAX(date) FROM DailyProfit)
+        )
         SELECT 
-            date(dp.date) as Date,
-            dp.profit_usd as 'Profit(USD)',
-            dp.total_fills as 'Total Fill Orders',
-            dp.successful_fills as 'Successful Orders',
-            dp.input_amount as 'Total Input Amount',
-            dp.output_amount as 'Total Output Amount',
-            dp.lp_fee as 'Total LP Fee',
-            dp.lp_fee * tp.price_usd as 'Total LP Fee(USD)',
-            dp.gas_fee_eth as 'Total Gas Fee',
-            dp.gas_fee_usd as 'Total Gas Fee(USD)',
-            dp.gas_fee_eth as 'Total Gas Fee(ETH)',
-            tp.price_usd as 'Token Price',
-            eth_price.price_usd as 'ETH Price'
-        FROM DailyProfit dp
-        JOIN TokenPrice tp ON dp.date = tp.date 
-            AND dp.token_symbol = tp.token_symbol
-        JOIN TokenPrice eth_price ON dp.date = eth_price.date 
+            date(d.date) as Date,
+            COALESCE(dp.profit_usd, 0) as 'Profit(USD)',
+            COALESCE(dp.total_fills, 0) as 'Total Fill Orders',
+            COALESCE(dp.successful_fills, 0) as 'Successful Orders',
+            COALESCE(dp.input_amount, 0) as 'Total Input Amount',
+            COALESCE(dp.output_amount, 0) as 'Total Output Amount',
+            COALESCE(dp.lp_fee, 0) as 'Total LP Fee',
+            COALESCE(dp.lp_fee * tp.price_usd, 0) as 'Total LP Fee(USD)',
+            COALESCE(dp.gas_fee_eth, 0) as 'Total Gas Fee',
+            COALESCE(dp.gas_fee_usd, 0) as 'Total Gas Fee(USD)',
+            COALESCE(dp.gas_fee_eth, 0) as 'Total Gas Fee(ETH)',
+            COALESCE(tp.price_usd, 0) as 'Token Price',
+            COALESCE(eth_price.price_usd, 0) as 'ETH Price'
+        FROM dates d
+        LEFT JOIN DailyProfit dp ON d.date = dp.date 
+            AND dp.chain_id = ? AND dp.token_symbol = ?
+        LEFT JOIN TokenPrice tp ON d.date = tp.date 
+            AND tp.token_symbol = ?
+        LEFT JOIN TokenPrice eth_price ON d.date = eth_price.date 
             AND eth_price.token_symbol = 'ETH'
-        WHERE dp.chain_id = ? AND dp.token_symbol = ?
-        ORDER BY dp.date DESC
+        ORDER BY d.date DESC
     """
     
-    cursor.execute(query, (chain_id, token_symbol))
+    cursor.execute(query, (chain_id, token_symbol, token_symbol))
     columns = [desc[0] for desc in cursor.description]
     data = cursor.fetchall()
     
