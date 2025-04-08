@@ -9,8 +9,7 @@ This module provides functions for common database operations, including:
 
 import logging
 import sqlite3
-from datetime import datetime
-
+from datetime import datetime, timezone
 from .config import LOGGING_CONFIG, get_db_path
 
 # Configure logging
@@ -87,10 +86,10 @@ def insert_route(
         # Check if route already exists
         exists_query = """
         SELECT route_id FROM Route
-        WHERE origin_chain_id = ?
-        AND destination_chain_id = ?
-        AND input_token = ?
-        AND output_token = ?
+            WHERE origin_chain_id = ? 
+            AND destination_chain_id = ? 
+            AND input_token = ? 
+            AND output_token = ?
         """
         existing_record = execute_query(
             exists_query,
@@ -110,18 +109,19 @@ def insert_route(
 
         # Insert new route
         insert_query = """
-        INSERT INTO Route (
-            origin_chain_id,
-            destination_chain_id,
-            input_token,
-            output_token,
-            token_symbol,
-            discovery_timestamp,
-            is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO Route (
+                origin_chain_id, 
+                destination_chain_id, 
+                input_token, 
+                output_token, 
+                token_symbol,
+                discovery_timestamp,
+                is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, 1)
         """
 
-        current_timestamp = int(datetime.now().timestamp())
+        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+
         cursor = execute_query(
             insert_query,
             (

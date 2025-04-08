@@ -14,9 +14,8 @@ import logging
 import sqlite3
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-
 import pandas as pd
-
+import pytz
 from .config import RETURN_DATA_FILE, DAILY_COUNT_FILE
 from .db_utils import get_db_connection
 
@@ -303,9 +302,9 @@ def get_bundle_return_summary() -> pd.DataFrame:
         data = cursor.fetchall()
         df = pd.DataFrame(data, columns=columns)
 
-        # Convert timestamps to datetime
-        df["first_bundle_time"] = pd.to_datetime(df["first_bundle_time"], unit="s")
-        df["last_bundle_time"] = pd.to_datetime(df["last_bundle_time"], unit="s")
+        # Convert timestamps to datetime with UTC timezone
+        df["first_bundle_time"] = pd.to_datetime(df["first_bundle_time"], unit="s", utc=True)
+        df["last_bundle_time"] = pd.to_datetime(df["last_bundle_time"], unit="s", utc=True)
 
         # Format time elapsed
         df["avg_time_elapsed"] = df["avg_time_elapsed"].apply(format_time_elapsed)

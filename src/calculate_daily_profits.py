@@ -10,7 +10,7 @@ This module:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sqlite3
 from typing import Tuple
 
@@ -64,8 +64,8 @@ def _get_date_range() -> Tuple[datetime, datetime]:
         end_date = cursor.fetchone()[0]
         
         return (
-            datetime.strptime(start_date, "%Y-%m-%d"),
-            datetime.strptime(end_date, "%Y-%m-%d")
+            datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         )
         
     finally:

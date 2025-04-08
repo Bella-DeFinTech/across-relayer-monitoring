@@ -8,7 +8,7 @@ already stored to avoid duplicate API calls.
 import logging
 import os
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -77,8 +77,8 @@ def update_token_prices():
             if chain["chain_id"] == 1
         )
         start_timestamp = get_block_timestamp(1, eth_start_block)
-        start_date = date.fromtimestamp(start_timestamp)
-        end_date = date.today()
+        start_date = datetime.fromtimestamp(start_timestamp, tz=timezone.utc).date()
+        end_date = datetime.now(timezone.utc).date()
         
         logger.info(f"Ethereum start block: {eth_start_block}")
         logger.info(f"Start timestamp: {start_timestamp}")
