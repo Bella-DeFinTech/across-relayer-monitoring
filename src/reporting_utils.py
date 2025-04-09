@@ -18,6 +18,7 @@ import pandas as pd
 import pytz
 from .config import RETURN_DATA_FILE, DAILY_COUNT_FILE
 from .db_utils import get_db_connection
+from .upload_utils import upload_reports
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
     Args:
         chain_id: Optional chain ID to filter by. If None, exports data for all chains.
     """
+    logger.info("Generating bundle return reports")
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -201,6 +203,8 @@ def write_daily_profits_excel() -> None:
     Write daily profit data to Excel file.
     Creates one sheet per chain-token combination.
     """
+    logger.info("Generating daily profit reports")
+
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -338,12 +342,10 @@ def get_bundle_return_summary() -> pd.DataFrame:
 
 
 def generate_reports() -> None:
-    """Generate all reports."""
-    logger.info("Generating bundle return reports")
+    """Generate all reports and optionally upload them to Google Drive."""
     write_bundle_returns_excel()
-    
-    logger.info("Generating daily profit reports")
     write_daily_profits_excel()
+    upload_reports()
 
 
 if __name__ == "__main__":

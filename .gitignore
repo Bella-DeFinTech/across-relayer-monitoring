@@ -58,3 +58,4 @@ capital_config.yaml
 .venv/
 _old/
 relayer_monitoring.db
+service_account.json
