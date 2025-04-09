@@ -114,7 +114,7 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
 
                 sheet_name = f"{chain_id}-{token_symbol}"
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
-                logger.info(f"Wrote {len(df)} rows to sheet {sheet_name}")
+                # logger.info(f"Wrote {len(df)} rows to sheet {sheet_name}")
 
         logger.info(f"Successfully wrote bundle return data to {RETURN_DATA_FILE}")
 

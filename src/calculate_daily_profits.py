@@ -98,7 +98,7 @@ def calculate_daily_profits() -> None:
             start_ts = int(current_date.timestamp())
             end_ts = int(next_date.timestamp())
             
-            logger.info(f"Processing profits for {current_date.date()}")
+            # logger.info(f"Processing profits for {current_date.date()}")
             
             # First get the number of fills we'll process
             cursor.execute("""
@@ -175,7 +175,7 @@ def calculate_daily_profits() -> None:
                 AND eth_price.token_symbol = 'ETH'
             """, (start_ts, end_ts))
             
-            logger.info(f"Processed {num_entries} profit entries for {current_date.date()}")
+            # logger.info(f"Processed {num_entries} profit entries for {current_date.date()}")
             
             # Move to next day
             current_date = next_date
