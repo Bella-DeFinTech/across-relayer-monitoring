@@ -63,7 +63,7 @@ def upload_to_gdrive(file_path, folder_id=None):
             media = MediaFileUpload(file_path, resumable=True)
             updated_file = service.files().update(fileId=file_id, media_body=media).execute()
             file_url = f"https://drive.google.com/file/d/{updated_file['id']}/view"
-            logger.info(f"Updated {filename} in Google Drive: {file_url}")
+            # logger.info(f"Updated {filename} in Google Drive: {file_url}")
         else:
             # Upload as a new file
             file_metadata = {'name': filename}
@@ -74,7 +74,7 @@ def upload_to_gdrive(file_path, folder_id=None):
             new_file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
             file_id = new_file['id']
             file_url = f"https://drive.google.com/file/d/{file_id}/view"
-            logger.info(f"Uploaded {filename} to Google Drive: {file_url}")
+            # logger.info(f"Uploaded {filename} to Google Drive: {file_url}")
         
         # Make the file public with writer access
         permission = {
@@ -82,7 +82,7 @@ def upload_to_gdrive(file_path, folder_id=None):
             'role': 'writer',
         }
         service.permissions().create(fileId=file_id, body=permission).execute()
-        logger.info(f"Made {filename} public with writer access")
+        # logger.info(f"Made {filename} public with writer access")
         
         return file_url
         
