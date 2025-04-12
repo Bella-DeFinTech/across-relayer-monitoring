@@ -57,7 +57,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # TODO
-    # - UTC time used?
-    # - Investigate fill count discrepancies.
