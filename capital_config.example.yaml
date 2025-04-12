@@ -1,0 +1,12 @@
+# Example capital allocation configuration
+# Each entry specifies token allocations starting from a specific date
+# start_date is in Unix timestamp format
+
+capitals:
+  - start_date: 1733184000  # Current allocation
+    ETH: 3.1
+    USDC: 320000
+    WBTC: 2
+    DAI: 0
+    USDT: 100000
+

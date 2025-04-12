@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 import pandas as pd
 import pytz
+import yaml
+from datetime import datetime, date
+from decimal import Decimal
 from .config import RETURN_DATA_FILE, DAILY_COUNT_FILE
 from .db_utils import get_db_connection
 from .upload_utils import upload_reports
@@ -198,6 +201,237 @@ def get_chain_token_pairs(cursor: sqlite3.Cursor) -> List[Dict[str, Any]]:
     return [{"chain_id": row[0], "token_symbol": row[1]} for row in cursor.fetchall()]
 
 
+def get_base_capital(target_date: date, token_symbol: str) -> float:
+    """
+    Get the base capital allocation for a token on a specific date
+    
+    Args:
+        target_date: Date to get capital for
+        token_symbol: Token symbol
+        
+    Returns:
+        Capital amount for the token
+    """
+    # Convert date to timestamp for comparison
+    target_timestamp = int(datetime.combine(target_date, datetime.min.time()).timestamp())
+    
+    # Load capital configuration
+    capital_config_path = Path(__file__).parent.parent / "capital_config.yaml"
+    try:
+        with open(capital_config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Find most recent capital allocation before target_date
+        for capital in reversed(config["capitals"]):
+            if target_timestamp >= capital["start_date"]:
+                return float(capital.get(token_symbol, 0))
+        
+        # If no matching entry found
+        logger.debug(f"No capital entry found for {target_date}, token {token_symbol}")
+        return 0
+    except FileNotFoundError:
+        logger.warning(f"Capital config file not found at {capital_config_path}")
+        return 0
+    except Exception as e:
+        logger.error(f"Error loading capital config: {e}")
+        return 0
+
+
+def get_capital_with_previous_profit(token_symbol: str, target_date: date, 
+                                  current_capital: float, last_day_profit: float) -> float:
+    """
+    Calculate capital including previous day's profit
+    
+    Args:
+        token_symbol: Token symbol
+        target_date: Date to calculate capital for
+        current_capital: Current capital amount
+        last_day_profit: Previous day's profit
+        
+    Returns:
+        Updated capital amount
+    """
+    from datetime import timedelta
+    
+    # Get base capitals
+    base_capital = get_base_capital(target_date, token_symbol)
+    prev_day = target_date - timedelta(days=1)
+    prev_day_base_capital = get_base_capital(prev_day, token_symbol)
+    
+    # Adjust for capital changes
+    adjusted_capital = current_capital + base_capital - prev_day_base_capital
+    
+    # Add previous day's profit
+    return adjusted_capital + last_day_profit
+
+
+def calculate_apy(profit: float, capital: float) -> str:
+    """
+    Calculate APY and format as percentage string
+    
+    Args:
+        profit: Daily profit amount
+        capital: Capital amount
+        
+    Returns:
+        Formatted APY string
+    """
+    if capital == 0:
+        return "0.00%"
+    
+    # Calculate APY using the original method from calc_apy.py
+    apy = profit * 365 / capital
+    
+    return f"{apy * 100:.2f}%"
+
+
+def add_apy_sheet(excel_writer: pd.ExcelWriter, conn: sqlite3.Connection) -> None:
+    """
+    Add APY and total profit sheet to the Excel report
+    
+    Args:
+        excel_writer: Open Excel writer object
+        conn: Database connection
+    """
+    logger.info("Generating APY and total profit sheet")
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Get the date range from DailyProfit
+        cursor.execute("SELECT MIN(date), MAX(date) FROM DailyProfit")
+        min_date, max_date = cursor.fetchone()
+        
+        if not min_date or not max_date:
+            logger.warning("No daily profit data found for APY calculation")
+            return
+        
+        # Convert to datetime objects
+        start_date = datetime.strptime(min_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(max_date, "%Y-%m-%d").date()
+        
+        # Get tokens with profit data
+        cursor.execute("SELECT DISTINCT token_symbol FROM DailyProfit ORDER BY token_symbol")
+        tokens = [row[0] for row in cursor.fetchall()]
+        
+        if not tokens:
+            logger.warning("No tokens found for APY calculation")
+            return
+        
+        # Initialize last day profits
+        last_profits = {token: 0 for token in tokens}
+        
+        # Initialize capitals with base values from config for the start date
+        capitals = {}
+        for token in tokens:
+            base_capital = get_base_capital(start_date, token)
+            capitals[token] = base_capital
+            logger.debug(f"Initialized capital for {token} on {start_date}: {base_capital}")
+        
+        # Initialize data list for DataFrame
+        data = []
+        
+        # For each date in range
+        current_date = start_date
+        while current_date <= end_date:
+            # Initialize row data
+            row_data = {"Date": current_date.strftime("%Y-%m-%d")}
+            date_str = current_date.strftime("%Y-%m-%d")
+            
+            # Get token prices for this date
+            cursor.execute("""
+                SELECT token_symbol, price_usd 
+                FROM TokenPrice 
+                WHERE date = ? AND token_symbol IN ({})
+            """.format(','.join(['?'] * len(tokens))), 
+            [date_str] + tokens)
+            
+            token_prices = {row[0]: row[1] for row in cursor.fetchall()}
+            
+            # If we don't have prices for all tokens, skip this date
+            if len(token_prices) < len(tokens):
+                current_date += pd.Timedelta(days=1)
+                continue
+            
+            # Get profits for this date
+            cursor.execute("""
+                SELECT token_symbol, 
+                       SUM(input_amount - output_amount - lp_fee) as token_profit,
+                       SUM(profit_usd) as usd_profit
+                FROM DailyProfit
+                WHERE date = ?
+                GROUP BY token_symbol
+            """, [date_str])
+            
+            daily_profits = {row[0]: {"token_profit": row[1], "usd_profit": row[2]} 
+                            for row in cursor.fetchall()}
+            
+            # Calculate total USD profit and capital
+            total_usd_profit = 0
+            total_usd_capital = 0
+            
+            # For each token
+            for token in tokens:
+                # Update capital with previous profit
+                capitals[token] = get_capital_with_previous_profit(
+                    token, current_date, capitals[token], last_profits[token]
+                )
+                
+                # Get profit for this token/date
+                token_profit = daily_profits.get(token, {"token_profit": 0, "usd_profit": 0})["token_profit"] or 0
+                usd_profit = daily_profits.get(token, {"token_profit": 0, "usd_profit": 0})["usd_profit"] or 0
+                
+                # Calculate APY
+                token_apy = calculate_apy(token_profit, capitals[token])
+                
+                # Add to total USD calculations
+                token_price = token_prices.get(token, 0)
+                token_usd_capital = capitals[token] * token_price
+                
+                total_usd_profit += usd_profit
+                total_usd_capital += token_usd_capital
+                
+                # Add to row data
+                row_data[f"{token} Capital"] = capitals[token]
+                row_data[f"{token} Profit"] = token_profit
+                row_data[f"{token} APY"] = token_apy
+                
+                # Update last day profit
+                last_profits[token] = token_profit
+            
+            # Calculate total APY
+            total_apy = calculate_apy(total_usd_profit, total_usd_capital)
+            
+            # Add totals to row data
+            row_data["Total USD Capital"] = total_usd_capital
+            row_data["Total USD Profit"] = total_usd_profit
+            row_data["Total APY"] = total_apy
+            
+            # Add row to data
+            data.append(row_data)
+            
+            # Move to next day
+            current_date += pd.Timedelta(days=1)
+        
+        # Create DataFrame and write to Excel
+        if data:
+            df = pd.DataFrame(data)
+            
+            # Sort by date in descending order (most recent first)
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.sort_values('Date', ascending=False)
+            df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+            
+            df.to_excel(excel_writer, sheet_name="APY", index=False)
+            logger.info("APY sheet generated successfully")
+        else:
+            logger.warning("No data for APY calculation")
+            
+    except Exception as e:
+        logger.error(f"Error generating APY sheet: {e}")
+        raise
+
+
 def write_daily_profits_excel() -> None:
     """
     Write daily profit data to Excel file.
@@ -220,39 +454,30 @@ def write_daily_profits_excel() -> None:
 
         # Write to Excel
         with pd.ExcelWriter(DAILY_COUNT_FILE) as writer:
-            # Create a sheet for each chain-token pair
+            # Write each chain-token pair to a separate sheet
+            sheets_created = False
+            
             for pair in pairs:
                 chain_id = pair["chain_id"]
                 token_symbol = pair["token_symbol"]
-                sheet_name = f"{chain_id}_{token_symbol.lower()}"
                 
-                # Get data for this pair
                 df = get_daily_profits_df(cursor, chain_id, token_symbol)
-                if not df.empty:
-                    # Calculate totals
-                    total_profit = df['Profit(USD)'].sum()
-                    total_lp = df['Total LP Fee(USD)'].sum()
-                    total_gas = df['Total Gas Fee(USD)'].sum()
+                
+                if df.empty:
+                    continue
                     
-                    # Add totals row
-                    # totals = pd.Series({
-                    #     'Date': 'Total',
-                    #     'Profit(USD)': total_profit,
-                    #     'Total LP Fee(USD)': total_lp,
-                    #     'Total Gas Fee(USD)': total_gas
-                    # })
-                    # df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
-                    
-                    # Write to sheet
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-                    
-                    # Add to summary
-                    summary_data.append([
-                        f"{chain_id}-{token_symbol}",
-                        total_profit,
-                        total_lp,
-                        total_gas
-                    ])
+                # Add to summary data
+                summary_data.append({
+                    'Chain-Token': f"{chain_id}-{token_symbol}",
+                    'Total Profit(USD)': df['Profit(USD)'].sum(),
+                    'Total LP Fee(USD)': df['Total LP Fee(USD)'].sum(),
+                    'Total Gas Fee(USD)': df['Total Gas Fee(USD)'].sum()
+                })
+                
+                # Write to sheet
+                sheet_name = f"{chain_id}-{token_symbol}"
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                sheets_created = True
             
             # Create summary sheet
             if summary_data:
@@ -261,7 +486,21 @@ def write_daily_profits_excel() -> None:
                     columns=['Chain-Token', 'Total Profit(USD)', 'Total LP Fee(USD)', 'Total Gas Fee(USD)']
                 )
                 summary_df.to_excel(writer, sheet_name='Summary', index=False)
-
+                sheets_created = True
+            
+            # Add APY sheet
+            try:
+                add_apy_sheet(writer, conn)
+                sheets_created = True
+            except Exception as e:
+                logger.error(f"Error generating APY sheet: {e}")
+                # Continue without APY sheet
+            
+            # Fallback: Create an empty sheet if no other sheets were created
+            if not sheets_created:
+                pd.DataFrame(columns=["No Data Available"]).to_excel(writer, sheet_name="No Data", index=False)
+                logger.warning("No data sheets were created, added fallback empty sheet")
+            
         logger.info(f"Daily profit data written to {DAILY_COUNT_FILE}")
 
     except Exception as e:
