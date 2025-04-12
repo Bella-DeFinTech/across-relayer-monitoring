@@ -15,6 +15,7 @@ This script orchestrates the entire process flow, including:
 import logging
 import sys
 
+from src.calculate_daily_profits import calculate_daily_profits
 from src.collect_fills import collect_fills
 from src.discover_routes import discover_routes
 from src.enrich_fills import enrich_fills
@@ -24,7 +25,6 @@ from src.process_repayments import process_repayments
 from src.process_returns import process_returns
 from src.reporting_utils import generate_reports
 from src.update_token_prices import update_token_prices
-from src.calculate_daily_profits import calculate_daily_profits
 
 # Configure logging
 logging.basicConfig(
@@ -39,45 +39,45 @@ def main():
     """
 
     try:
-        # # Initialize database if it doesn't exist
-        # logger.info("=" * 80)
-        # logger.info("Checking database")
-        # init_db()
+        # Initialize database if it doesn't exist
+        logger.info("=" * 80)
+        logger.info("Checking database")
+        init_db()
 
-        # # Discover routes and update the database
-        # logger.info("=" * 80)
-        # logger.info("Discovering routes")
-        # discover_routes()
+        # Discover routes and update the database
+        logger.info("=" * 80)
+        logger.info("Discovering routes")
+        discover_routes()
 
-        # # Collect fills and update the database
-        # logger.info("=" * 80)
-        # logger.info("Collecting fills")
-        # collect_fills()
+        # Collect fills and update the database
+        logger.info("=" * 80)
+        logger.info("Collecting fills")
+        collect_fills()
 
-        # # Enrich fills with deposit timestamps and LP fees
-        # logger.info("=" * 80)
-        # logger.info("Enriching fills with deposit timestamps and LP fees")
-        # enrich_fills()
+        # Enrich fills with deposit timestamps and LP fees
+        logger.info("=" * 80)
+        logger.info("Enriching fills with deposit timestamps and LP fees")
+        enrich_fills()
 
-        # # Process returns and update the database
-        # logger.info("=" * 80)
-        # logger.info("Processing returns")
-        # process_returns()
+        # Process returns and update the database
+        logger.info("=" * 80)
+        logger.info("Processing returns")
+        process_returns()
 
-        # # Process bundles and update the database
-        # logger.info("=" * 80)
-        # logger.info("Processing bundles")
-        # process_bundles()
+        # Process bundles and update the database
+        logger.info("=" * 80)
+        logger.info("Processing bundles")
+        process_bundles()
 
-        # # Process bundle repayments and update the database
-        # logger.info("=" * 80)
-        # logger.info("Processing bundle repayments")
-        # process_repayments()
+        # Process bundle repayments and update the database
+        logger.info("=" * 80)
+        logger.info("Processing bundle repayments")
+        process_repayments()
 
-        # # Update token prices in the database
-        # logger.info("=" * 80)
-        # logger.info("Updating token prices")
-        # update_token_prices()
+        # Update token prices in the database
+        logger.info("=" * 80)
+        logger.info("Updating token prices")
+        update_token_prices()
 
         # Calculate daily profits
         logger.info("=" * 80)
@@ -96,11 +96,9 @@ def main():
         sys.exit(1)
 
 
-
 if __name__ == "__main__":
     main()
 
     # TODO
     # - UTC time used?
     # - Investigate fill count discrepancies.
-    

@@ -10,6 +10,7 @@ This module provides functions for common database operations, including:
 import logging
 import sqlite3
 from datetime import datetime, timezone
+
 from .config import LOGGING_CONFIG, get_db_path
 
 # Configure logging

@@ -10,31 +10,31 @@ This module:
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
 from config import LOGGING_CONFIG, get_db_path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), 
-    format=LOGGING_CONFIG["format"]
+    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
 )
 logger = logging.getLogger(__name__)
+
 
 def _get_date_range() -> Tuple[datetime, datetime]:
     """
     Get the date range to process:
     - Start from earliest unprocessed Fill date
     - End at latest Fill date
-    
+
     Returns:
         Tuple of (start_date, end_date) as datetime objects
     """
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    
+
     try:
         # Get earliest unprocessed fill date
         cursor.execute("""
@@ -53,28 +53,29 @@ def _get_date_range() -> Tuple[datetime, datetime]:
             )
         """)
         start_date = cursor.fetchone()[0]
-        
+
         # If no unprocessed fills, use earliest fill date
         if not start_date:
             cursor.execute("SELECT MIN(DATE(tx_timestamp, 'unixepoch')) FROM Fill")
             start_date = cursor.fetchone()[0]
-        
+
         # Get latest fill date
         cursor.execute("SELECT MAX(DATE(tx_timestamp, 'unixepoch')) FROM Fill")
         end_date = cursor.fetchone()[0]
-        
+
         return (
             datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
-            datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
         )
-        
+
     finally:
         conn.close()
+
 
 def calculate_daily_profits() -> None:
     """
     Calculate daily profits for any unprocessed fills.
-    
+
     Uses a single SQL query to:
     1. Aggregate Fill data by day/chain/token
     2. Apply proper token decimals from Token table
@@ -83,25 +84,26 @@ def calculate_daily_profits() -> None:
     """
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    
+
     try:
         # Get date range to process
         start_date, end_date = _get_date_range()
         logger.info(f"Processing profits from {start_date.date()} to {end_date.date()}")
-        
+
         # Process one day at a time to handle large datasets
         current_date = start_date
         while current_date <= end_date:
             next_date = current_date + timedelta(days=1)
-            
+
             # Convert dates to timestamps for SQL
             start_ts = int(current_date.timestamp())
             end_ts = int(next_date.timestamp())
-            
+
             # logger.info(f"Processing profits for {current_date.date()}")
-            
+
             # First get the number of fills we'll process
-            cursor.execute("""
+            cursor.execute(
+                """
             WITH fill_amounts AS (
                 SELECT 
                     DATE(f.tx_timestamp, 'unixepoch') as date,
@@ -124,11 +126,12 @@ def calculate_daily_profits() -> None:
                     f.destination_chain_id,
                     t.symbol
             )
-            SELECT COUNT(*) FROM fill_amounts""", (start_ts, end_ts))
-            num_entries = cursor.fetchone()[0]
-            
+            SELECT COUNT(*) FROM fill_amounts""",
+                (start_ts, end_ts),
+            )
             # Calculate and insert daily profits
-            cursor.execute("""
+            cursor.execute(
+                """
             WITH fill_amounts AS (
                 SELECT 
                     DATE(f.tx_timestamp, 'unixepoch') as date,
@@ -173,23 +176,24 @@ def calculate_daily_profits() -> None:
             JOIN TokenPrice eth_price 
                 ON eth_price.date = f.date 
                 AND eth_price.token_symbol = 'ETH'
-            """, (start_ts, end_ts))
-            
-            # logger.info(f"Processed {num_entries} profit entries for {current_date.date()}")
-            
+            """,
+                (start_ts, end_ts),
+            )
+
             # Move to next day
             current_date = next_date
-            
+
         conn.commit()
         logger.info("Daily profit calculation completed successfully")
-        
+
     except Exception as e:
         logger.error(f"Error calculating daily profits: {e}")
         conn.rollback()
         raise
-        
+
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     calculate_daily_profits()

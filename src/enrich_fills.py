@@ -57,7 +57,7 @@ def get_deposit_start_block(chain_id: int) -> int:
 
         if result and result[0] is not None:
             logger.info(f"Using latest deposit block {result[0]} for chain {chain_id}")
-            return result[0] - 1000000 # buffer in case any misses in prev run.
+            return result[0] - 1000000  # buffer in case any misses in prev run.
 
         # If no deposits found, use chain's start_block - 1M blocks
         chain = next((c for c in CHAINS if c["chain_id"] == chain_id), None)
@@ -154,7 +154,7 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
             chain_name = chain["name"]
 
             # Get appropriate start block for this chain
-            start_block = get_deposit_start_block(chain_id) 
+            start_block = get_deposit_start_block(chain_id)
 
             if chain_id not in contracts:
                 logger.warning(f"No contract configured for chain {chain_name}")

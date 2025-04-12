@@ -20,7 +20,9 @@ DB_FILE = os.getenv("DB_FILE", "relayer_monitoring.db")
 REPORTS_DIR = Path("reports")
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)  # Ensure reports directory exists
 RETURN_DATA_FILE = os.getenv("RETURN_DATA_FILE", str(REPORTS_DIR / "return_data.xlsx"))
-DAILY_COUNT_FILE = os.getenv("DAILY_COUNT_FILE", str(REPORTS_DIR / "daily_profits.xlsx"))
+DAILY_COUNT_FILE = os.getenv(
+    "DAILY_COUNT_FILE", str(REPORTS_DIR / "daily_profits.xlsx")
+)
 
 # Relayer configuration
 RELAYER_ADDRESS = os.getenv("RELAYER_ADDRESS")
@@ -42,7 +44,7 @@ COINGECKO_SYMBOL_MAP = {
     "DAI": "dai",
     "USDT": "tether",
     "WETH": "weth",
-    "WBTC": "wrapped-bitcoin"
+    "WBTC": "wrapped-bitcoin",
 }
 
 # Hub Contract Address

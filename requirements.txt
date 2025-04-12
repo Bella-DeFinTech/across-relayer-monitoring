@@ -85,7 +85,7 @@ pytz==2025.1
 pyunormalize==16.0.0
 PyYAML==6.0.2
 regex==2024.11.6
--e git+ssh://git@github.com/Bella-DeFinTech/across-relayer-monitoring.git@d52de350e741e7327f43f3cc537cfeedb5535774#egg=relayer_refactor
+-e git+ssh://git@github.com/Bella-DeFinTech/across-relayer-monitoring.git@82b06c3c43ee469fe99ef721762580abb1102bdf#egg=relayer_refactor
 requests==2.32.3
 rlp==4.1.0
 rsa==4.9
@@ -94,6 +94,7 @@ ruff==0.9.9
 six==1.17.0
 toolz==1.0.0
 tox==4.24.1
+types-PyYAML==6.0.12.20250402
 types-requests==2.32.0.20250301
 typing_extensions==4.12.2
 tzdata==2025.1
