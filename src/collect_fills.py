@@ -252,7 +252,8 @@ def collect_fills():
     """
     Main function to collect fills from all chains.
     """
-    logger.info("Starting fill collection")
+    logger.info("=" * 80)
+    logger.info("Collecting fills")
     contracts = get_spokepool_contracts()
 
     if not contracts:

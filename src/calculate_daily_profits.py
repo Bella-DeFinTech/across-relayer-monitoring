@@ -82,6 +82,10 @@ def calculate_daily_profits() -> None:
     3. Calculate profits in USD using TokenPrice table
     4. Insert results into DailyProfit table
     """
+
+    logger.info("=" * 80)
+    logger.info("Calculating daily profits")
+
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
 

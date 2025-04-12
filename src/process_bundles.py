@@ -352,6 +352,9 @@ def process_bundles() -> None:
     - Contract connections are properly established
     - Processing errors in one chain don't affect others
     """
+    logger.info("=" * 80)
+    logger.info("Processing bundles")
+
     logger.info("Starting bundle processing")
 
     # Get contract instances

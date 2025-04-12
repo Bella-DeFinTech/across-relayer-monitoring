@@ -250,6 +250,8 @@ def discover_routes():
     """
     Discover routes and insert them into the database.
     """
+    logger.info("=" * 80)
+    logger.info("Discovering routes")
     routes = get_fill_routes()
     insert_routes_into_db(routes)
     insert_token_info_into_db(routes)

@@ -67,6 +67,10 @@ def _get_price_from_api(coingecko_id: str, date_str: str) -> Optional[Decimal]:
 
 def update_token_prices():
     """Update all token prices from earliest block to today."""
+
+    logger.info("=" * 80)
+    logger.info("Updating token prices")
+
     try:
         # Get start timestamp from Ethereum's start block
         eth_start_block = next(

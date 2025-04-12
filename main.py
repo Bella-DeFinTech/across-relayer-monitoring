@@ -39,57 +39,16 @@ def main():
     """
 
     try:
-        # Initialize database if it doesn't exist
-        logger.info("=" * 80)
-        logger.info("Checking database")
-        init_db()
-
-        # Discover routes and update the database
-        logger.info("=" * 80)
-        logger.info("Discovering routes")
-        discover_routes()
-
-        # Collect fills and update the database
-        logger.info("=" * 80)
-        logger.info("Collecting fills")
-        collect_fills()
-
-        # Enrich fills with deposit timestamps and LP fees
-        logger.info("=" * 80)
-        logger.info("Enriching fills with deposit timestamps and LP fees")
-        enrich_fills()
-
-        # Process returns and update the database
-        logger.info("=" * 80)
-        logger.info("Processing returns")
-        process_returns()
-
-        # Process bundles and update the database
-        logger.info("=" * 80)
-        logger.info("Processing bundles")
-        process_bundles()
-
-        # Process bundle repayments and update the database
-        logger.info("=" * 80)
-        logger.info("Processing bundle repayments")
-        process_repayments()
-
-        # Update token prices in the database
-        logger.info("=" * 80)
-        logger.info("Updating token prices")
-        update_token_prices()
-
-        # Calculate daily profits
-        logger.info("=" * 80)
-        logger.info("Calculating daily profits")
-        calculate_daily_profits()
-
-        # Generate reports
-        logger.info("=" * 80)
-        logger.info("Generating reports")
-        generate_reports()
-
-        logger.info("Process completed successfully")
+        init_db()  # Initialize database if it doesn't exist
+        discover_routes()  # Discover routes and update the database
+        collect_fills()  # Collect fills and update the database
+        enrich_fills()  # Enrich fills with deposit timestamps and LP fees
+        process_returns()  # Process returns and update the database
+        process_bundles()  # Process bundles and update the database
+        process_repayments()  # Process bundle repayments and update the database
+        update_token_prices()  # Update token prices in the database
+        calculate_daily_profits()  # Calculate daily profits
+        generate_reports()  # Generate reports
 
     except Exception as e:
         logger.error(f"Error in main process: {str(e)}", exc_info=True)

@@ -303,6 +303,10 @@ def process_repayments() -> None:
         - Processes each bundle
         - Updates BundleReturn table
     """
+
+    logger.info("=" * 80)
+    logger.info("Processing bundle repayments")
+
     try:
         conn = get_db_connection()
         cursor = conn.cursor()

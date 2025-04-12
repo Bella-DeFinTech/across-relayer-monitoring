@@ -27,6 +27,9 @@ def init_db():
     - If database file exists, check if it has tables
     - If database file doesn't exist or is empty, create it and initialize tables
     """
+    logger.info("=" * 80)
+    logger.info("Checking database")
+
     # Get database file path from config
     db_file = get_db_path()
     if not db_file:

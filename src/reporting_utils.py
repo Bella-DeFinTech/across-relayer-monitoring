@@ -623,6 +623,10 @@ def get_bundle_return_summary() -> pd.DataFrame:
 
 def generate_reports() -> None:
     """Generate all reports and optionally upload them to Google Drive."""
+
+    logger.info("=" * 80)
+    logger.info("Generating reports")
+
     write_bundle_returns_excel()
     write_daily_profits_excel()
     upload_reports()

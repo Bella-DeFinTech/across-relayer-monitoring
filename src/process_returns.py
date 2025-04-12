@@ -156,7 +156,9 @@ def process_chain_returns(chain_id: int, contract: Contract, start_block: int) -
 
 def process_returns():
     """Process returns across all chains."""
-    logger.info("Starting return processing")
+
+    logger.info("=" * 80)
+    logger.info("Processing returns")
 
     # Get contracts using web3_utils
     contracts = get_spokepool_contracts()

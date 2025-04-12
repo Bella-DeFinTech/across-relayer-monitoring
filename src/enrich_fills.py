@@ -426,6 +426,9 @@ def enrich_fills():
     """
     Main synchronous entry point to enrich Fill records.
     """
+    logger.info("=" * 80)
+    logger.info("Enriching fills with deposit timestamps and LP fees")
+
     asyncio.run(enrich_fills_async())
 
 
