@@ -19,6 +19,7 @@ from .web3_utils import get_hub_contract, get_spokepool_contracts
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def get_last_processed_bundle(chain_id: int) -> int:
     """
     Retrieves the most recently processed bundle ID for a specific chain.

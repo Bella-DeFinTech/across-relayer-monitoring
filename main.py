@@ -17,6 +17,7 @@ import sys
 
 from src.calculate_daily_profits import calculate_daily_profits
 from src.collect_fills import collect_fills
+from src.config import setup_logging
 from src.discover_routes import discover_routes
 from src.enrich_fills import enrich_fills
 from src.init_db import init_db
@@ -25,7 +26,6 @@ from src.process_repayments import process_repayments
 from src.process_returns import process_returns
 from src.reporting_utils import generate_reports
 from src.update_token_prices import update_token_prices
-from src.config import setup_logging
 
 # Configure logging
 setup_logging()

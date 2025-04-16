@@ -16,6 +16,7 @@ from .config import get_db_path
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def get_db_connection():
     """
     Create and return a connection to the SQLite database.

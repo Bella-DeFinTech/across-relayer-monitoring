@@ -15,6 +15,7 @@ from .config import CHAINS, HUB_ADDRESS, get_chains
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def get_hub_contract() -> Optional[Contract]:
     """
     Get Web3 contract instance for the Across Hub contract on Ethereum.

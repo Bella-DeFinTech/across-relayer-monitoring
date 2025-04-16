@@ -14,6 +14,7 @@ from .web3_utils import get_block_timestamp, get_spokepool_contracts
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def get_start_block(chain_id: int) -> int:
     """Get the block to start processing returns from."""
     conn = get_db_connection()

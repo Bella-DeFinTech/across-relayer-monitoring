@@ -19,6 +19,7 @@ from config import get_db_path
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def _get_date_range() -> Tuple[datetime, datetime]:
     """
     Get the date range to process:

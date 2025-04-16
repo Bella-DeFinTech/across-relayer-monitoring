@@ -21,6 +21,7 @@ from .web3_utils import get_erc20_token_info, get_spokepool_contracts
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 def get_fill_routes() -> List[Dict[str, Any]]:
     """
     Get all unique fill routes from relayer transactions.
