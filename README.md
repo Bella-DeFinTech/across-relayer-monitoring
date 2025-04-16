@@ -12,6 +12,9 @@ pip install -r requirements.txt
 # set up and populate .env 
 cp .env.example .env
 
+# ensure GCP service_account.json is in root directory 
+ls service_account.json
+
 # run code 
 python3 main.py
 ```
