@@ -12,8 +12,11 @@ pip install -r requirements.txt
 # set up and populate .env 
 cp .env.example .env
 
+# fill out capital config
+cp capital_config.example.yaml capital_config.yaml
+
 # ensure GCP service_account.json is in root directory 
-ls service_account.json
+touch service_account.json
 
 # run code 
 python3 main.py # directly 
