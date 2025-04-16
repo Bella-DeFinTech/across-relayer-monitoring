@@ -16,8 +16,14 @@ cp .env.example .env
 ls service_account.json
 
 # run code 
-python3 main.py
+python3 main.py # directly 
+/home/ubuntu/across-relayer-monitoring/cron_relayer_monitoring.sh # via cron job
+
+## cron sample 
+0 10 * * * /home/ubuntu/across-relayer-monitoring/cron_relayer_monitoring.sh
+
 ```
+
 
 ## Tests
 ```bash 
