@@ -12,12 +12,9 @@ import os
 import sqlite3
 import sys
 
-from config import CHAINS, LOGGING_CONFIG, get_db_path
+from config import CHAINS, get_db_path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
 
 

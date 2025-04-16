@@ -12,7 +12,6 @@ from web3 import Web3
 from .config import (
     CHAINS,
     FILL_RELAY_METHOD_ID,
-    LOGGING_CONFIG,
     RELAYER_ADDRESS,
     chain_id_to_name,
 )
@@ -20,11 +19,7 @@ from .db_utils import get_db_connection, insert_route, insert_token
 from .web3_utils import get_erc20_token_info, get_spokepool_contracts
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_fill_routes() -> List[Dict[str, Any]]:
     """

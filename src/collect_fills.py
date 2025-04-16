@@ -10,16 +10,12 @@ from typing import Any, Dict, List, Optional, cast
 import requests
 from web3 import Web3
 
-from .config import CHAINS, FILL_RELAY_METHOD_ID, LOGGING_CONFIG, RELAYER_ADDRESS
+from .config import CHAINS, FILL_RELAY_METHOD_ID, RELAYER_ADDRESS
 from .db_utils import get_db_connection
 from .web3_utils import get_spokepool_contracts
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_last_processed_block(chain_id: int) -> int:
     """

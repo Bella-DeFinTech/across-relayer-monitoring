@@ -21,7 +21,6 @@ from src.web3_utils import get_block_timestamp
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 def find_active_tokens(cursor: sqlite3.Cursor, chain_id: int) -> Set[Tuple[str, str]]:
     """
     Find active tokens for a chain by looking at Route table.

@@ -12,16 +12,13 @@ from decimal import Decimal
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
 
 from .config import CHAINS, COINGECKO_KEY, COINGECKO_SYMBOL_MAP
 from .db_utils import get_db_connection
 from .web3_utils import get_block_timestamp
 
+# Configure logging
 logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
 
 
 def _get_price_from_api(coingecko_id: str, date_str: str) -> Optional[Decimal]:

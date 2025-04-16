@@ -16,15 +16,11 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import aiohttp
 
-from .config import CHAINS, LOGGING_CONFIG, get_db_path
+from .config import CHAINS, get_db_path
 from .web3_utils import get_spokepool_contracts
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_deposit_start_block(chain_id: int) -> int:
     """

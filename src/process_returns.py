@@ -7,16 +7,12 @@ from typing import cast
 
 from web3.contract import Contract
 
-from .config import CHAINS, LOGGING_CONFIG, RELAYER_ADDRESS
+from .config import CHAINS, RELAYER_ADDRESS
 from .db_utils import get_db_connection
 from .web3_utils import get_block_timestamp, get_spokepool_contracts
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_start_block(chain_id: int) -> int:
     """Get the block to start processing returns from."""

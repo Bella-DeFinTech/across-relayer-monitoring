@@ -10,6 +10,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from datetime import datetime
+
+import logging
+
 # Load environment variables
 load_dotenv(override=True)
 
@@ -94,10 +98,22 @@ CHAINS = [
 ]
 
 # Logging configuration
-LOGGING_CONFIG = {
-    "level": os.getenv("LOG_LEVEL", "INFO"),
-    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-}
+def setup_logging():
+    start_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    LOGS_DIR = Path("logs")
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)  # Ensure logs directory exists
+    LOG_FILE = str(LOGS_DIR / f"{start_datetime}_relayer_monitoring.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(LOG_FILE), # Write logs to file
+            logging.StreamHandler(), # Print logs to console
+        ],
+    )
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting relayer monitoring at {start_datetime}")
+    return start_datetime
 
 
 def get_chains(chain_id):

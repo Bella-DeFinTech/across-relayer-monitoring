@@ -11,14 +11,10 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
-from .config import LOGGING_CONFIG, get_db_path
+from .config import get_db_path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_db_connection():
     """

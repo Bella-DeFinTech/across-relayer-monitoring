@@ -13,14 +13,10 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-from .config import DAILY_COUNT_FILE, LOGGING_CONFIG, RETURN_DATA_FILE
+from .config import DAILY_COUNT_FILE, RETURN_DATA_FILE
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def upload_to_gdrive(file_path, folder_id=None):
     """

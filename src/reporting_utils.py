@@ -26,7 +26,6 @@ from .upload_utils import upload_reports
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 def format_time_elapsed(seconds: float) -> str:
     """Convert seconds to human readable time."""
     if seconds < 60:

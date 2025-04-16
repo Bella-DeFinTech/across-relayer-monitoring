@@ -25,11 +25,10 @@ from src.process_repayments import process_repayments
 from src.process_returns import process_returns
 from src.reporting_utils import generate_reports
 from src.update_token_prices import update_token_prices
+from src.config import setup_logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 

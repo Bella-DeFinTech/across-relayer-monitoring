@@ -12,16 +12,12 @@ import logging
 import time
 from typing import Dict, List, cast
 
-from .config import CHAINS, LOGGING_CONFIG
+from .config import CHAINS
 from .db_utils import get_db_connection
 from .web3_utils import get_hub_contract, get_spokepool_contracts
 
 # Configure logging
-logging.basicConfig(
-    level=logging.getLevelName(LOGGING_CONFIG["level"]), format=LOGGING_CONFIG["format"]
-)
 logger = logging.getLogger(__name__)
-
 
 def get_last_processed_bundle(chain_id: int) -> int:
     """
