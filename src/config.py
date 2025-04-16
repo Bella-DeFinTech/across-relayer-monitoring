@@ -114,6 +114,7 @@ def setup_logging():
     logger.info(f"Starting relayer monitoring at {timestamp}")
     logger.info(f"Log file: {log_file}")
 
+
 def get_chains(chain_id):
     """
     Get chain configuration by chain ID.
