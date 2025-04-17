@@ -12,9 +12,9 @@ import logging
 import time
 from typing import Dict, List, cast
 
-from .config import CHAINS
-from .db_utils import get_db_connection
-from .web3_utils import get_hub_contract, get_spokepool_contracts
+from src.config import CHAINS
+from src.db_utils import get_db_connection
+from src.web3_utils import get_hub_contract, get_spokepool_contracts
 
 # Configure logging
 logger = logging.getLogger(__name__)
