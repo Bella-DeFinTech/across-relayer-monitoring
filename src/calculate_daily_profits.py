@@ -10,11 +10,10 @@ This module:
 """
 
 import logging
-import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
-from db_utils import get_db_connection
+from src.db_utils import get_db_connection
 
 # Configure logging
 logger = logging.getLogger(__name__)
