@@ -7,9 +7,9 @@ from typing import cast
 
 from web3.contract import Contract
 
-from .config import CHAINS, RELAYER_ADDRESS
-from .db_utils import get_db_connection
-from .web3_utils import get_block_timestamp, get_spokepool_contracts
+from src.config import CHAINS, RELAYER_ADDRESS
+from src.db_utils import get_db_connection
+from src.web3_utils import get_block_timestamp, get_spokepool_contracts
 
 # Configure logging
 logger = logging.getLogger(__name__)

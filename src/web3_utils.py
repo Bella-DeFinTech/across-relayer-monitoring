@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, cast
 from web3 import Web3
 from web3.contract import Contract
 
-from .config import CHAINS, HUB_ADDRESS, get_chains
+from src.config import CHAINS, HUB_ADDRESS, get_chains
 
 # Configure logging
 logger = logging.getLogger(__name__)

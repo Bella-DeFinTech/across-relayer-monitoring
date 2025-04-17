@@ -12,7 +12,7 @@ import os
 import sqlite3
 import sys
 
-from config import CHAINS, get_db_path
+from src.config import CHAINS, get_db_path
 
 # Configure logging
 logger = logging.getLogger(__name__)

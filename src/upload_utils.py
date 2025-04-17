@@ -13,7 +13,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-from .config import DAILY_COUNT_FILE, RETURN_DATA_FILE
+from src.config import DAILY_COUNT_FILE, RETURN_DATA_FILE
 
 # Configure logging
 logger = logging.getLogger(__name__)

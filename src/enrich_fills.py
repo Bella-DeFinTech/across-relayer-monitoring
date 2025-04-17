@@ -16,8 +16,8 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import aiohttp
 
-from .config import CHAINS, get_db_path
-from .web3_utils import get_spokepool_contracts
+from src.config import CHAINS, get_db_path
+from src.web3_utils import get_spokepool_contracts
 
 # Configure logging
 logger = logging.getLogger(__name__)

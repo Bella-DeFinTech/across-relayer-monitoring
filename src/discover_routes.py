@@ -9,14 +9,14 @@ from typing import Any, Dict, List
 import requests
 from web3 import Web3
 
-from .config import (
+from src.config import (
     CHAINS,
     FILL_RELAY_METHOD_ID,
     RELAYER_ADDRESS,
     chain_id_to_name,
 )
-from .db_utils import get_db_connection, insert_route, insert_token
-from .web3_utils import get_erc20_token_info, get_spokepool_contracts
+from src.db_utils import get_db_connection, insert_route, insert_token
+from src.web3_utils import get_erc20_token_info, get_spokepool_contracts
 
 # Configure logging
 logger = logging.getLogger(__name__)

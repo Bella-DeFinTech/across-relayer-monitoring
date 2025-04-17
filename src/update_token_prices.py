@@ -13,9 +13,9 @@ from typing import Optional
 
 import requests
 
-from .config import CHAINS, COINGECKO_KEY, COINGECKO_SYMBOL_MAP
-from .db_utils import get_db_connection
-from .web3_utils import get_block_timestamp
+from src.config import CHAINS, COINGECKO_KEY, COINGECKO_SYMBOL_MAP
+from src.db_utils import get_db_connection
+from src.web3_utils import get_block_timestamp
 
 # Configure logging
 logger = logging.getLogger(__name__)

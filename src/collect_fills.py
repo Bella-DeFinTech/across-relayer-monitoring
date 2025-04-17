@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional, cast
 import requests
 from web3 import Web3
 
-from .config import CHAINS, FILL_RELAY_METHOD_ID, RELAYER_ADDRESS
-from .db_utils import get_db_connection
-from .web3_utils import get_spokepool_contracts
+from src.config import CHAINS, FILL_RELAY_METHOD_ID, RELAYER_ADDRESS
+from src.db_utils import get_db_connection
+from src.web3_utils import get_spokepool_contracts
 
 # Configure logging
 logger = logging.getLogger(__name__)
