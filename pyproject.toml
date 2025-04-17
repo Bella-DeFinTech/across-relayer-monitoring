@@ -24,6 +24,7 @@ dev = [
     "mypy",
     "tox>=4.6.0",
     "ruff",
+    "types-PyYAML",
 ]
 
 [project.urls]

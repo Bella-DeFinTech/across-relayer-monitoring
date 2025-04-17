@@ -110,6 +110,9 @@ def setup_logging():
             logging.StreamHandler(),  # Print logs to console
         ],
     )
+    # Suppress the Google API discovery cache warning
+    logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.WARNING)
+
     logger = logging.getLogger(__name__)
     logger.info(f"Starting relayer monitoring at {timestamp}")
     logger.info(f"Log file: {log_file}")

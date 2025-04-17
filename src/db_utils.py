@@ -11,7 +11,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
-from .config import get_db_path
+from src.config import get_db_path
 
 # Configure logging
 logger = logging.getLogger(__name__)

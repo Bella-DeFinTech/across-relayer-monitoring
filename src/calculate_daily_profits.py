@@ -14,7 +14,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
-from config import get_db_path
+from db_utils import get_db_connection
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def _get_date_range() -> Tuple[datetime, datetime]:
     Returns:
         Tuple of (start_date, end_date) as datetime objects
     """
-    conn = sqlite3.connect(get_db_path())
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
@@ -83,7 +83,7 @@ def calculate_daily_profits() -> None:
     logger.info("=" * 80)
     logger.info("Calculating daily profits")
 
-    conn = sqlite3.connect(get_db_path())
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
