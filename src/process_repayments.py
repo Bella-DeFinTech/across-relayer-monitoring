@@ -244,6 +244,18 @@ def process_bundle(
         start_time = get_block_timestamp(bundle["chain_id"], start_block)
         end_time = get_block_timestamp(bundle["chain_id"], end_block)
 
+        # Get propose and settlement timestamps from Bundle table
+        cursor.execute(
+            """
+            SELECT propose_timestamp, settlement_timestamp 
+            FROM Bundle 
+            WHERE bundle_id = ? AND chain_id = ?
+            """,
+            (bundle["bundle_id"], bundle["chain_id"]),
+        )
+        propose_timestamp, settlement_timestamp = cursor.fetchone()
+        propose_settlement_time_diff = settlement_timestamp - propose_timestamp if propose_timestamp and settlement_timestamp else None
+
         # Insert into BundleReturn
         fill_tx_hashes = ",".join(f["tx_hash"] for f in fills)
         return_tx_hash = returns[0]["tx_hash"] if returns else None
@@ -264,8 +276,9 @@ def process_bundle(
                 end_time,
                 fill_tx_hashes,
                 return_tx_hash,
-                relayer_refund_root
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                relayer_refund_root,
+                propose_settlement_time_diff
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 bundle["bundle_id"],
@@ -282,6 +295,7 @@ def process_bundle(
                 fill_tx_hashes,
                 return_tx_hash,
                 bundle["relayer_refund_root"],
+                propose_settlement_time_diff,
             ),
         )
 

@@ -5,6 +5,7 @@ Web3 utility functions for blockchain interactions.
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, Optional, cast
 
 from web3 import Web3
@@ -178,6 +179,7 @@ def get_erc20_token_info(token_address: str, chain_id: int) -> Dict[str, Any]:
 def get_block_timestamp(chain_id: int, block_number: int) -> int:
     """
     Get block timestamp for a given block number on a specific chain.
+    Will retry up to 3 times if there's a connection error.
 
     Args:
         chain_id (int): ID of the blockchain chain
@@ -188,24 +190,44 @@ def get_block_timestamp(chain_id: int, block_number: int) -> int:
 
     Raises:
         ValueError: If chain configuration is missing or invalid
+        Exception: If all retries fail
     """
-    try:
-        chain = get_chains(chain_id)
-        if not chain or not chain.get("rpc_url"):
-            raise ValueError(f"Missing or invalid configuration for chain {chain_id}")
+    retries = 0
+    max_retries = 3
+    last_error = None
 
+    while retries < max_retries:
         try:
-            rpc_url_str = cast(str, chain["rpc_url"])
-        except (TypeError, ValueError) as e:
-            logger.error(f"Invalid RPC URL type for chain {chain_id}: {str(e)}")
-            raise ValueError(f"Invalid RPC URL configuration for chain {chain_id}")
+            chain = get_chains(chain_id)
+            if not chain or not chain.get("rpc_url"):
+                raise ValueError(f"Missing or invalid configuration for chain {chain_id}")
 
-        w3 = Web3(Web3.HTTPProvider(rpc_url_str))
-        block = w3.eth.get_block(block_number)
-        return block["timestamp"]
+            try:
+                rpc_url_str = cast(str, chain["rpc_url"])
+            except (TypeError, ValueError) as e:
+                logger.error(f"Invalid RPC URL type for chain {chain_id}: {str(e)}")
+                raise ValueError(f"Invalid RPC URL configuration for chain {chain_id}")
 
-    except Exception as e:
-        logger.error(
-            f"Error getting block timestamp for block {block_number} on chain {chain_id}: {str(e)}"
-        )
-        raise
+            w3 = Web3(Web3.HTTPProvider(rpc_url_str))
+            block = w3.eth.get_block(block_number)
+            return block["timestamp"]
+
+        except (ConnectionError, TimeoutError) as e:
+            retries += 1
+            last_error = e
+            if retries < max_retries:
+                logger.warning(f"Attempt {retries} failed, retrying... Error: {str(e)}")
+                time.sleep(1)  # Simple 1 second delay between retries
+            continue
+        except Exception as e:
+            # Don't retry on non-connection errors
+            logger.error(
+                f"Error getting block timestamp for block {block_number} on chain {chain_id}: {str(e)}"
+            )
+            raise
+
+    # If we get here, all retries failed
+    logger.error(
+        f"Failed to get block timestamp after {max_retries} attempts for block {block_number} on chain {chain_id}: {str(last_error)}"
+    )
+    raise last_error

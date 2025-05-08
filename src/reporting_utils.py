@@ -85,7 +85,7 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
             for chain_id, token_symbol in combinations:
                 # Get data for this chain-token combination
                 cursor.execute(
-                    """
+                    '''
                     SELECT 
                         br.bundle_id,
                         br.return_tx_hash,
@@ -100,11 +100,15 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
                         datetime(br.end_time, 'unixepoch') as end_time,
                         (br.end_time - br.start_time) as time_elapsed,
                         br.fill_tx_hashes as tx_hashs,
-                        br.relayer_refund_root
+                        br.relayer_refund_root,
+                        datetime(b.propose_timestamp, 'unixepoch') as propose_time,
+                        datetime(b.settlement_timestamp, 'unixepoch') as settlement_time,
+                        (b.settlement_timestamp - b.propose_timestamp) as propose_settlement_time_diff
                     FROM BundleReturn br
+                    JOIN Bundle b ON b.bundle_id = br.bundle_id AND b.chain_id = br.chain_id
                     WHERE br.chain_id = ? AND br.token_symbol = ?
                     ORDER BY br.bundle_id DESC
-                """,
+                    ''',
                     (chain_id, token_symbol),
                 )
 
@@ -114,6 +118,7 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
 
                 # Format time elapsed
                 df["time_elapsed"] = df["time_elapsed"].apply(format_time_elapsed)
+                df["propose_settlement_time_diff"] = df["propose_settlement_time_diff"].apply(format_time_elapsed)
 
                 sheet_name = f"{chain_id}-{token_symbol}"
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -559,7 +564,7 @@ def get_bundle_return_summary() -> pd.DataFrame:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute('''
             SELECT 
                 chain_id,
                 token_symbol,
@@ -568,6 +573,7 @@ def get_bundle_return_summary() -> pd.DataFrame:
                 SUM(return_amount) as total_return,
                 SUM(lp_fee) as total_lp_fee,
                 AVG(end_time - start_time) as avg_time_elapsed,
+                AVG(propose_settlement_time_diff) as avg_propose_settlement_time,
                 MIN(start_block) as first_start_block,
                 MIN(end_block) as first_end_block,
                 MIN(start_time) as first_bundle_time,
@@ -577,7 +583,7 @@ def get_bundle_return_summary() -> pd.DataFrame:
             FROM BundleReturn
             GROUP BY chain_id, token_symbol
             ORDER BY chain_id, token_symbol
-        """)
+        ''')
         columns = [desc[0] for desc in cursor.description]
         data = cursor.fetchall()
         df = pd.DataFrame(data, columns=columns)
@@ -628,7 +634,7 @@ def generate_reports() -> None:
     logger.info("Generating reports")
 
     write_bundle_returns_excel()
-    write_daily_profits_excel()
+    # write_daily_profits_excel()
     upload_reports()
 
 

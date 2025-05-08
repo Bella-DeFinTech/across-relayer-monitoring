@@ -153,6 +153,8 @@ def init_db():
             relayer_refund_root TEXT NOT NULL,
             end_block INTEGER NOT NULL,
             processed_timestamp INTEGER,
+            propose_timestamp INTEGER,      -- When ProposeRootBundle tx landed on Ethereum
+            settlement_timestamp INTEGER,   -- When RelayedRootBundle tx landed on destination
             PRIMARY KEY (bundle_id, chain_id),
             FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
         );
@@ -172,6 +174,7 @@ def init_db():
             fill_tx_hashes TEXT,  -- Comma-separated list of fill transaction hashes
             return_tx_hash TEXT,  -- Single transaction hash for the return
             relayer_refund_root TEXT,
+            propose_settlement_time_diff INTEGER,  -- Time difference in seconds between propose and settlement
             created_at INTEGER NOT NULL DEFAULT (unixepoch()),
             PRIMARY KEY (bundle_id, chain_id, token_address),
             FOREIGN KEY (chain_id) REFERENCES Chain(chain_id),

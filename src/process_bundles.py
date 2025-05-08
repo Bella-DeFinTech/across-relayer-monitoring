@@ -14,7 +14,7 @@ from typing import Dict, List, cast
 
 from src.config import CHAINS
 from src.db_utils import get_db_connection
-from src.web3_utils import get_hub_contract, get_spokepool_contracts
+from src.web3_utils import get_hub_contract, get_spokepool_contracts, get_block_timestamp
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -282,37 +282,37 @@ def process_chain_bundles(chain_id: int, hub_contract) -> None:
                     # Extract the bundle ID from the spoke event
                     bundle_id = matching_spoke_event["args"]["rootBundleId"]
 
-                    #  bundleEvaluationBlockNumbers
-
-                    bundle_eval_block_numbers = propose_event["args"][
-                        "bundleEvaluationBlockNumbers"
-                    ]
-
-                    # print(len(bundle_eval_block_numbers))  # ALWAYS 19
-
-                    # Get the block number for this specific chain using its index in the array
-                    # The index is configured per chain in the CHAINS config
+                    # Get bundle evaluation block numbers
+                    bundle_eval_block_numbers = propose_event["args"]["bundleEvaluationBlockNumbers"]
                     bundle_block_index = chain["bundle_block_index"]
                     bundle_end_block = bundle_eval_block_numbers[bundle_block_index]
+
+                    # Get propose and settlement timestamps
+                    propose_timestamp = get_block_timestamp(1, propose_event["blockNumber"])  # Ethereum is chain_id 1
+                    settlement_timestamp = get_block_timestamp(chain_id, matching_spoke_event["blockNumber"])
 
                     if bundle_end_block >= last_bundle_end_block:
                         # Insert bundle record
                         cursor.execute(
-                            """
+                            '''
                             INSERT INTO Bundle (
                                 bundle_id,
                                 chain_id,
                                 relayer_refund_root,
                                 end_block,
-                                processed_timestamp
-                            ) VALUES (?, ?, ?, ?, ?)
-                        """,
+                                processed_timestamp,
+                                propose_timestamp,
+                                settlement_timestamp
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''',
                             (
                                 bundle_id,
                                 chain_id,
                                 propose_event["args"]["relayerRefundRoot"].hex(),
                                 bundle_end_block,
                                 int(time.time()),
+                                propose_timestamp,
+                                settlement_timestamp,
                             ),
                         )
                         bundles_processed += 1

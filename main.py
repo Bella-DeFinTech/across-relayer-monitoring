@@ -45,8 +45,8 @@ def main():
         process_returns()  # Process returns and update the database
         process_bundles()  # Process bundles and update the database
         process_repayments()  # Process bundle repayments and update the database
-        update_token_prices()  # Update token prices in the database
-        calculate_daily_profits()  # Calculate daily profits
+        # update_token_prices()  # Update token prices in the database
+        # calculate_daily_profits()  # Calculate daily profits
         generate_reports()  # Generate reports
 
     except Exception as e:

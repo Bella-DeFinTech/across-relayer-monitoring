@@ -87,6 +87,8 @@ CREATE TABLE Bundle (
     relayer_refund_root TEXT NOT NULL,              -- Relayer refund root hash
     end_block INTEGER NOT NULL,             -- Ending block for this bundle on this chain
     processed_timestamp INTEGER,            -- When this bundle was processed
+    propose_timestamp INTEGER,      -- When ProposeRootBundle tx landed on Ethereum
+    settlement_timestamp INTEGER,   -- When RelayedRootBundle tx landed on destination
     PRIMARY KEY (bundle_id, chain_id),
     FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
 );
@@ -105,6 +107,8 @@ CREATE TABLE BundleReturn (
     fill_tx_hashes TEXT,  -- Comma-separated list of fill transaction hashes
     return_tx_hash TEXT,  -- Single transaction hash for the return
     relayer_refund_root TEXT,
+    propose_settlement_time_diff INTEGER,  -- Time difference in seconds between propose and settlement
+
     created_at INTEGER NOT NULL,
     FOREIGN KEY (bundle_id, chain_id) REFERENCES Bundle(bundle_id, chain_id),
     UNIQUE(bundle_id, chain_id, token_address)
