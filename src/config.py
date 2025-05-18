@@ -60,7 +60,8 @@ CHAINS = [
         "rpc_url": os.getenv("ETH_RPC"),
         "api_key": os.getenv("ETH_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ETH_SPOKE_POOL_ADDRESS"),
-        "start_block": 21950406,  # The block of the first fill on this chain you want to start monitoring from
+        # "start_block": 21950406,  # Post breaking Relayer changes
+        "start_block": 22418181, # post 5/5/25 capital pull
         "bundle_block_index": 0,  # Index in bundleEvaluationBlockNumbers array
     },
     {
@@ -70,7 +71,8 @@ CHAINS = [
         "rpc_url": os.getenv("OP_RPC"),
         "api_key": os.getenv("OP_SCAN_KEY"),
         "spoke_pool_address": os.getenv("OP_SPOKE_POOL_ADDRESS"),
-        "start_block": 132848581,  # The block of the first fill on this chain you want to start monitoring from
+        # "start_block": 132848581,  # Post breaking Relayer changes
+        "start_block": 135387300, # post 5/5/25 capital pull
         "bundle_block_index": 1,  # Index in bundleEvaluationBlockNumbers array
     },
     {
@@ -80,7 +82,8 @@ CHAINS = [
         "rpc_url": os.getenv("ARB_RPC"),
         "api_key": os.getenv("ARB_SCAN_KEY"),
         "spoke_pool_address": os.getenv("ARB_SPOKE_POOL_ADDRESS"),
-        "start_block": 311048309,  # The block of the first fill on this chain you want to start monitoring from
+        # "start_block": 311048309,  # Post breaking Relayer changes
+        "start_block": 333537560, # post 5/5/25 capital pull
         "bundle_block_index": 4,  # Index in bundleEvaluationBlockNumbers array
     },
     {
@@ -90,7 +93,8 @@ CHAINS = [
         "rpc_url": os.getenv("BASE_RPC"),
         "api_key": os.getenv("BASE_SCAN_KEY"),
         "spoke_pool_address": os.getenv("BASE_SPOKE_POOL_ADDRESS"),
-        "start_block": 27011711,  # The block of the first fill on this chain you want to start monitoring from
+        # "start_block": 27011711,  # Post breaking Relayer changes
+        "start_block": 29833823, # post 5/5/25 capital pull
         "bundle_block_index": 6,  # Index in bundleEvaluationBlockNumbers array
     },
 ]

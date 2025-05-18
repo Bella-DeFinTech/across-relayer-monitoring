@@ -91,6 +91,7 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
                         br.return_tx_hash,
                         br.input_amount,
                         br.return_amount,
+                        COALESCE(SUM(CAST(f.output_amount AS DECIMAL)), 0) as output_amount,
                         br.lp_fee,
                         (br.return_amount + br.lp_fee) as 'return + lp',
                         (br.input_amount - br.return_amount - br.lp_fee) as 'repayment difference',
@@ -106,7 +107,14 @@ def write_bundle_returns_excel(chain_id: Optional[int] = None) -> None:
                         (b.settlement_timestamp - b.propose_timestamp) as propose_settlement_time_diff
                     FROM BundleReturn br
                     JOIN Bundle b ON b.bundle_id = br.bundle_id AND b.chain_id = br.chain_id
+                    LEFT JOIN Fill f ON f.tx_hash IN (
+                        SELECT value FROM json_each('["' || REPLACE(br.fill_tx_hashes, ',', '","') || '"]')
+                    )
                     WHERE br.chain_id = ? AND br.token_symbol = ?
+                    GROUP BY br.bundle_id, br.return_tx_hash, br.input_amount, br.return_amount, 
+                             br.lp_fee, br.start_block, br.end_block, br.start_time, br.end_time,
+                             br.fill_tx_hashes, br.relayer_refund_root, b.propose_timestamp, 
+                             b.settlement_timestamp
                     ORDER BY br.bundle_id DESC
                     ''',
                     (chain_id, token_symbol),

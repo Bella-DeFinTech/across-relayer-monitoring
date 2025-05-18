@@ -4,6 +4,9 @@ Process return events from spoke pool contracts across all chains.
 
 import logging
 from typing import cast
+from web3.exceptions import ContractLogicError
+from requests.exceptions import RequestException
+import json
 
 from web3.contract import Contract
 
@@ -44,6 +47,40 @@ def get_start_block(chain_id: int) -> int:
         conn.close()
 
 
+def get_executed_relayer_refund_root_events(contract: Contract, start_block: int, chain_id: int) -> list:
+    """
+    Fetch ExecutedRelayerRefundRoot events using pagination to handle large block ranges.
+    
+    Args:
+        contract (Contract): Web3 contract instance
+        start_block (int): Starting block number
+        chain_id (int): Chain ID for logging purposes
+        
+    Returns:
+        list: List of ExecutedRelayerRefundRoot events
+        
+    Raises:
+        ContractLogicError: If there's an error fetching events from the contract
+        RequestException: If there's a network request error
+    """
+    current_block = contract.w3.eth.block_number
+    all_events = []
+    current_start = start_block
+    
+    while current_start < current_block:
+        current_end = min(current_start + 499, current_block)
+        logger.info(f"Fetching blocks {current_start} to {current_end} for chain {chain_id}")
+        
+        chunk_events = contract.events.ExecutedRelayerRefundRoot.get_logs(
+            from_block=current_start,
+            to_block=current_end
+        )
+        all_events.extend(chunk_events)
+        current_start = current_end + 1
+        
+    return all_events
+
+
 def process_chain_returns(chain_id: int, contract: Contract, start_block: int) -> int:
     """
     Process return events for a specific blockchain chain.
@@ -64,9 +101,19 @@ def process_chain_returns(chain_id: int, contract: Contract, start_block: int) -
 
     try:
         # Get ExecutedRelayerRefundRoot events
-        events = contract.events.ExecutedRelayerRefundRoot.get_logs(
-            from_block=start_block
-        )
+        try:
+            events = get_executed_relayer_refund_root_events(contract, start_block, chain_id)
+        except (ContractLogicError, RequestException) as e:
+            # Extract the full error response if available
+            error_msg = str(e)
+            try:
+                if hasattr(e, 'response') and e.response is not None:
+                    error_details = e.response.json()
+                    error_msg = f"Full error: {json.dumps(error_details, indent=2)}"
+            except Exception:
+                pass
+            logger.error(f"Error getting logs for chain {chain_id}: {error_msg}")
+            return 0
 
         if not events:
             logger.info(f"No new return events found for chain {chain_id}")
