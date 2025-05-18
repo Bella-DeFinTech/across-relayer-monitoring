@@ -215,10 +215,11 @@ def process_returns():
     for chain in CHAINS:
         try:
             chain_id = cast(int, chain["chain_id"])
-            start_block = get_start_block(chain_id)
-            total_returns += process_chain_returns(
-                chain_id, contracts[chain_id], start_block
-            )
+            if chain_id == 1: # we only have returns for WBTC on eth_mainnet
+                start_block = get_start_block(chain_id)
+                total_returns += process_chain_returns(
+                    chain_id, contracts[chain_id], start_block
+                )
         except Exception as e:
             logger.error(f"Failed to process chain {chain_id}: {e}")
 

@@ -433,18 +433,18 @@ def add_apy_sheet(excel_writer: pd.ExcelWriter, conn: sqlite3.Connection) -> Non
                 # Add to row data
                 row_data[f"{token} Capital"] = str(capitals[token])
                 row_data[f"{token} Profit"] = str(token_profit)
-                row_data[f"{token} APY"] = token_apy
+                row_data[f"{token} APR"] = token_apy  # THIS IS AN APR CALCULATION (NO COMPOUNDING)
 
                 # Update last day profit
                 last_profits[token] = token_profit
 
             # Calculate total APY
-            total_apy = calculate_apy(total_usd_profit, total_usd_capital)
+            total_apy = calculate_apy(total_usd_profit, total_usd_capital) # THIS IS AN APR CALCULATION (NO COMPOUNDING)
 
             # Add totals to row data
             row_data["Total USD Capital"] = str(total_usd_capital)
             row_data["Total USD Profit"] = str(total_usd_profit)
-            row_data["Total APY"] = total_apy
+            row_data["Total APR"] = total_apy # THIS IS AN APR CALCULATION (NO COMPOUNDING)
 
             # Add row to data
             data.append(row_data)
@@ -461,7 +461,7 @@ def add_apy_sheet(excel_writer: pd.ExcelWriter, conn: sqlite3.Connection) -> Non
             df = df.sort_values("Date", ascending=False)
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
 
-            df.to_excel(excel_writer, sheet_name="APY", index=False)
+            df.to_excel(excel_writer, sheet_name="APR", index=False)
             logger.info("APY sheet generated successfully")
         else:
             logger.warning("No data for APY calculation")
@@ -642,7 +642,7 @@ def generate_reports() -> None:
     logger.info("Generating reports")
 
     write_bundle_returns_excel()
-    # write_daily_profits_excel()
+    write_daily_profits_excel()
     upload_reports()
 
 

@@ -42,9 +42,9 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 # Token configuration
 COINGECKO_SYMBOL_MAP = {
     "ETH": "ethereum",
-    "USDC": "usd-coin",
-    "DAI": "dai",
-    "USDT": "tether",
+    # "USDC": "usd-coin",
+    # "DAI": "dai",
+    # "USDT": "tether",
     "WETH": "weth",
     "WBTC": "wrapped-bitcoin",
 }
