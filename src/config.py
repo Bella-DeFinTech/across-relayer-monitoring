@@ -86,17 +86,17 @@ CHAINS = [
         "start_block": 333537560, # post 5/5/25 capital pull
         "bundle_block_index": 4,  # Index in bundleEvaluationBlockNumbers array
     },
-    {
-        "chain_id": 8453,
-        "name": "Base",
-        "explorer_api_url": "https://api.basescan.org/api",
-        "rpc_url": os.getenv("BASE_RPC"),
-        "api_key": os.getenv("BASE_SCAN_KEY"),
-        "spoke_pool_address": os.getenv("BASE_SPOKE_POOL_ADDRESS"),
-        # "start_block": 27011711,  # Post breaking Relayer changes
-        "start_block": 29833823, # post 5/5/25 capital pull
-        "bundle_block_index": 6,  # Index in bundleEvaluationBlockNumbers array
-    },
+    # {
+    #     "chain_id": 8453,
+    #     "name": "Base",
+    #     "explorer_api_url": "https://api.basescan.org/api",
+    #     "rpc_url": os.getenv("BASE_RPC"),
+    #     "api_key": os.getenv("BASE_SCAN_KEY"),
+    #     "spoke_pool_address": os.getenv("BASE_SPOKE_POOL_ADDRESS"),
+    #     # "start_block": 27011711,  # Post breaking Relayer changes
+    #     "start_block": 29833823, # post 5/5/25 capital pull
+    #     "bundle_block_index": 6,  # Index in bundleEvaluationBlockNumbers array
+    # },
 ]
 
 

@@ -63,10 +63,11 @@ def get_fill_routes() -> List[Dict[str, Any]]:
         if destination_chain_id not in contracts:
             continue
 
-        logger.info(f"Scanning {destination_chain['name']} for fill routes...")
+        start_block = destination_chain["start_block"]
+        logger.info(f"Scanning {destination_chain['name']} for fill routes starting from start_block: {start_block} ...")
 
         # Get transactions from block explorer API
-        url = f"{destination_chain['explorer_api_url']}?module=account&action=txlist&address={RELAYER_ADDRESS}&startblock=0&endblock=999999999&sort=desc&apikey={destination_chain['api_key']}"
+        url = f"{destination_chain['explorer_api_url']}?module=account&action=txlist&address={RELAYER_ADDRESS}&startblock={start_block}&endblock=999999999&sort=desc&apikey={destination_chain['api_key']}"
 
         try:
             response = requests.get(url)
