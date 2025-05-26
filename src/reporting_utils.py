@@ -170,13 +170,20 @@ def get_daily_profits_df(
             COALESCE(dp.profit_usd, 0) as 'Profit(USD)',
             COALESCE(dp.total_fills, 0) as 'Total Fill Orders',
             COALESCE(dp.successful_fills, 0) as 'Successful Orders',
-            COALESCE(dp.input_amount, 0) as 'Total Input Amount',
-            COALESCE(dp.output_amount, 0) as 'Total Output Amount',
-            COALESCE(dp.lp_fee, 0) as 'Total LP Fee',
-            COALESCE(dp.lp_fee * tp.price_usd, 0) as 'Total LP Fee(USD)',
-            COALESCE(dp.gas_fee_eth, 0) as 'Total Gas Fee',
-            COALESCE(dp.gas_fee_usd, 0) as 'Total Gas Fee(USD)',
-            COALESCE(dp.gas_fee_eth, 0) as 'Total Gas Fee(ETH)',
+            -- Success metrics
+            COALESCE(dp.success_input_amount, 0) as 'Successful Input Amount',
+            COALESCE(dp.success_output_amount, 0) as 'Successful Output Amount',
+            COALESCE(dp.success_lp_fee, 0) as 'Successful LP Fee',
+            COALESCE(dp.success_lp_fee * tp.price_usd, 0) as 'Successful LP Fee(USD)',
+            COALESCE(dp.success_gas_fee_eth, 0) as 'Successful Gas Fee(ETH)',
+            COALESCE(dp.success_gas_fee_usd, 0) as 'Successful Gas Fee(USD)',
+            -- All metrics
+            COALESCE(dp.all_input_amount, 0) as 'All Input Amount',
+            COALESCE(dp.all_output_amount, 0) as 'All Output Amount',
+            COALESCE(dp.all_lp_fee, 0) as 'All LP Fee',
+            COALESCE(dp.all_lp_fee * tp.price_usd, 0) as 'All LP Fee(USD)',
+            COALESCE(dp.all_gas_fee_eth, 0) as 'All Gas Fee(ETH)',
+            COALESCE(dp.all_gas_fee_usd, 0) as 'All Gas Fee(USD)',
             COALESCE(tp.price_usd, 0) as 'Token Price',
             COALESCE(eth_price.price_usd, 0) as 'ETH Price'
         FROM dates d
@@ -381,7 +388,7 @@ def add_apy_sheet(excel_writer: pd.ExcelWriter, conn: sqlite3.Connection) -> Non
             cursor.execute(
                 """
                 SELECT token_symbol, 
-                       SUM(input_amount - output_amount - lp_fee) as token_profit,
+                       SUM(success_input_amount - success_output_amount - success_lp_fee) as token_profit,
                        SUM(profit_usd) as usd_profit
                 FROM DailyProfit
                 WHERE date = ?
@@ -510,8 +517,10 @@ def write_daily_profits_excel() -> None:
                     {
                         "Chain-Token": f"{chain_id}-{token_symbol}",
                         "Total Profit(USD)": df["Profit(USD)"].sum(),
-                        "Total LP Fee(USD)": df["Total LP Fee(USD)"].sum(),
-                        "Total Gas Fee(USD)": df["Total Gas Fee(USD)"].sum(),
+                        "Successful LP Fee(USD)": df["Successful LP Fee(USD)"].sum(),
+                        "All LP Fee(USD)": df["All LP Fee(USD)"].sum(),
+                        "Successful Gas Fee(USD)": df["Successful Gas Fee(USD)"].sum(),
+                        "All Gas Fee(USD)": df["All Gas Fee(USD)"].sum(),
                     }
                 )
 
@@ -527,8 +536,10 @@ def write_daily_profits_excel() -> None:
                     columns=[
                         "Chain-Token",
                         "Total Profit(USD)",
-                        "Total LP Fee(USD)",
-                        "Total Gas Fee(USD)",
+                        "Successful LP Fee(USD)",
+                        "All LP Fee(USD)",
+                        "Successful Gas Fee(USD)",
+                        "All Gas Fee(USD)",
                     ],
                 )
                 summary_df.to_excel(writer, sheet_name="Summary", index=False)

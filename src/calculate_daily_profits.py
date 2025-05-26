@@ -75,10 +75,11 @@ def calculate_daily_profits() -> None:
     Uses a single SQL query to:
     1. Aggregate Fill data by day/chain/token
     2. Apply proper token decimals from Token table
-    3. Calculate profits in USD using TokenPrice table
-    4. Insert results into DailyProfit table
-    """
+    3. Calculate profits in both token and USD terms
+    4. Store results in DailyProfit table
 
+    Note: Only successful fills are included in profit calculations.
+    """
     logger.info("=" * 80)
     logger.info("Calculating daily profits")
 
@@ -99,8 +100,6 @@ def calculate_daily_profits() -> None:
             start_ts = int(current_date.timestamp())
             end_ts = int(next_date.timestamp())
 
-            # logger.info(f"Processing profits for {current_date.date()}")
-
             # First get the number of fills we'll process
             cursor.execute(
                 """
@@ -109,12 +108,24 @@ def calculate_daily_profits() -> None:
                     DATE(f.tx_timestamp, 'unixepoch') as date,
                     f.destination_chain_id as chain_id,
                     t.symbol as token_symbol,
-                    -- Convert amounts using token decimals
-                    SUM(CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals)) as input_amount,
-                    SUM(CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals)) as output_amount,
-                    SUM(CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals)) as lp_fee,
-                    -- Gas is always in ETH (18 decimals)
-                    SUM(CAST(f.gas_cost AS DECIMAL) / POWER(10, 18)) as gas_fee_eth,
+                    -- Success metrics
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_input_amount,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_output_amount,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_lp_fee,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.gas_cost AS DECIMAL) / POWER(10, 18) 
+                        ELSE 0 END) as success_gas_fee_eth,
+                    -- All metrics
+                    SUM(CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals)) as all_input_amount,
+                    SUM(CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals)) as all_output_amount,
+                    SUM(CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals)) as all_lp_fee,
+                    SUM(CAST(f.gas_cost AS DECIMAL) / POWER(10, 18)) as all_gas_fee_eth,
                     COUNT(*) as total_fills,
                     SUM(CASE WHEN f.is_success = 1 THEN 1 ELSE 0 END) as successful_fills
                 FROM Fill f
@@ -129,6 +140,7 @@ def calculate_daily_profits() -> None:
             SELECT COUNT(*) FROM fill_amounts""",
                 (start_ts, end_ts),
             )
+
             # Calculate and insert daily profits
             cursor.execute(
                 """
@@ -137,12 +149,24 @@ def calculate_daily_profits() -> None:
                     DATE(f.tx_timestamp, 'unixepoch') as date,
                     f.destination_chain_id as chain_id,
                     t.symbol as token_symbol,
-                    -- Convert amounts using token decimals
-                    SUM(CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals)) as input_amount,
-                    SUM(CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals)) as output_amount,
-                    SUM(CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals)) as lp_fee,
-                    -- Gas is always in ETH (18 decimals)
-                    SUM(CAST(f.gas_cost AS DECIMAL) / POWER(10, 18)) as gas_fee_eth,
+                    -- Success metrics
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_input_amount,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_output_amount,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals) 
+                        ELSE 0 END) as success_lp_fee,
+                    SUM(CASE WHEN f.is_success = 1 
+                        THEN CAST(f.gas_cost AS DECIMAL) / POWER(10, 18) 
+                        ELSE 0 END) as success_gas_fee_eth,
+                    -- All metrics
+                    SUM(CAST(f.input_amount AS DECIMAL) / POWER(10, t.decimals)) as all_input_amount,
+                    SUM(CAST(f.output_amount AS DECIMAL) / POWER(10, t.decimals)) as all_output_amount,
+                    SUM(CAST(f.lp_fee AS DECIMAL) / POWER(10, t.decimals)) as all_lp_fee,
+                    SUM(CAST(f.gas_cost AS DECIMAL) / POWER(10, 18)) as all_gas_fee_eth,
                     COUNT(*) as total_fills,
                     SUM(CASE WHEN f.is_success = 1 THEN 1 ELSE 0 END) as successful_fills
                 FROM Fill f
@@ -157,18 +181,23 @@ def calculate_daily_profits() -> None:
             
             INSERT OR REPLACE INTO DailyProfit (
                 date, chain_id, token_symbol,
-                input_amount, output_amount, lp_fee,
-                gas_fee_eth, gas_fee_usd,
+                success_input_amount, success_output_amount, success_lp_fee,
+                success_gas_fee_eth, success_gas_fee_usd,
+                all_input_amount, all_output_amount, all_lp_fee,
+                all_gas_fee_eth, all_gas_fee_usd,
                 total_fills, successful_fills, profit_usd
             )
             SELECT 
                 f.date, f.chain_id, f.token_symbol,
-                f.input_amount, f.output_amount, f.lp_fee,
-                f.gas_fee_eth,
-                f.gas_fee_eth * eth_price.price_usd as gas_fee_usd,
+                f.success_input_amount, f.success_output_amount, f.success_lp_fee,
+                f.success_gas_fee_eth,
+                f.success_gas_fee_eth * eth_price.price_usd as success_gas_fee_usd,
+                f.all_input_amount, f.all_output_amount, f.all_lp_fee,
+                f.all_gas_fee_eth,
+                f.all_gas_fee_eth * eth_price.price_usd as all_gas_fee_usd,
                 f.total_fills, f.successful_fills,
-                (f.input_amount - f.output_amount - f.lp_fee) * token_price.price_usd 
-                    - (f.gas_fee_eth * eth_price.price_usd) as profit_usd
+                (f.success_input_amount - f.success_output_amount - f.success_lp_fee) * token_price.price_usd 
+                    - (f.success_gas_fee_eth * eth_price.price_usd) as profit_usd
             FROM fill_amounts f
             JOIN TokenPrice token_price 
                 ON token_price.date = f.date 

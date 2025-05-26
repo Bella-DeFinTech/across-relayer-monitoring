@@ -122,6 +122,30 @@ CREATE TABLE TokenPrice (
     PRIMARY KEY (date, token_symbol)
 )
 
+
+CREATE TABLE DailyProfit (
+    date DATE,
+    chain_id INTEGER,
+    token_symbol TEXT,
+    success_input_amount DECIMAL,
+    success_output_amount DECIMAL,
+    success_lp_fee DECIMAL,
+    success_gas_fee_eth DECIMAL,
+    success_gas_fee_usd DECIMAL,
+    all_input_amount DECIMAL,
+    all_output_amount DECIMAL,
+    all_lp_fee DECIMAL,
+    all_gas_fee_eth DECIMAL,
+    all_gas_fee_usd DECIMAL,
+    total_fills INTEGER,
+    successful_fills INTEGER,
+    profit_usd DECIMAL,
+    PRIMARY KEY (date, chain_id, token_symbol),
+    FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
+)
+
+## Dailly Profit Design 
+Old:
 CREATE TABLE DailyProfit (
     date DATE,
     chain_id INTEGER,
@@ -137,6 +161,7 @@ CREATE TABLE DailyProfit (
     PRIMARY KEY (date, chain_id, token_symbol),
     FOREIGN KEY (chain_id) REFERENCES Chain(chain_id)
 )
+
 
 ## Return Design 
 
