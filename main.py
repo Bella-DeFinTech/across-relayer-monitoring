@@ -40,14 +40,14 @@ def main():
     try:
         init_db()  # Initialize database if it doesn't exist
         discover_routes()  # Discover routes and update the database
-        collect_fills()  # Collect fills and update the database
-        enrich_fills()  # Enrich fills with deposit timestamps and LP fees
-        process_returns()  # Process returns and update the database
-        process_bundles()  # Process bundles and update the database
-        process_repayments()  # Process bundle repayments and update the database
-        update_token_prices()  # Update token prices in the database
-        calculate_daily_profits()  # Calculate daily profits
-        generate_reports()  # Generate reports
+        # collect_fills()  # Collect fills and update the database
+        # enrich_fills()  # Enrich fills with deposit timestamps and LP fees
+        # process_returns()  # Process returns and update the database
+        # process_bundles()  # Process bundles and update the database
+        # process_repayments()  # Process bundle repayments and update the database
+        # update_token_prices()  # Update token prices in the database
+        # calculate_daily_profits()  # Calculate daily profits
+        # generate_reports()  # Generate reports
 
     except Exception as e:
         logger.error(f"Error in main process: {str(e)}", exc_info=True)

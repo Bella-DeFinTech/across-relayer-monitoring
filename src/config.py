@@ -56,34 +56,41 @@ CHAINS = [
     {
         "chain_id": 1,
         "name": "Ethereum",
-        "explorer_api_url": "https://api.etherscan.io/api",
+        # "explorer_api_url": "https://api.etherscan.io/api",
+        "explorer_api_url": "https://api.etherscan.io/v2/api?chainid=1", # etherscan v2 migration 10/14/25
         "rpc_url": os.getenv("ETH_RPC"),
-        "api_key": os.getenv("ETH_SCAN_KEY"),
+        "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("ETH_SPOKE_POOL_ADDRESS"),
         # "start_block": 21950406,  # Post breaking Relayer changes
-        "start_block": 22418181, # post 5/5/25 capital pull
+        # "start_block": 22418181, # post 5/5/25 capital pull
+        "start_block": 23565787, # post 10/14/25
+
         "bundle_block_index": 0,  # Index in bundleEvaluationBlockNumbers array
     },
     {
         "chain_id": 10,
         "name": "Optimism",
-        "explorer_api_url": "https://api-optimistic.etherscan.io/api",
+        # "explorer_api_url": "https://api-optimistic.etherscan.io/api",
+        "explorer_api_url": "https://api.etherscan.io/v2/api?chainid=10", # etherscan v2 migration 10/14/25
         "rpc_url": os.getenv("OP_RPC"),
-        "api_key": os.getenv("OP_SCAN_KEY"),
+        "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("OP_SPOKE_POOL_ADDRESS"),
         # "start_block": 132848581,  # Post breaking Relayer changes
-        "start_block": 135387300, # post 5/5/25 capital pull
+        # "start_block": 135387300, # post 5/5/25 capital pull
+        "start_block": 142292751, # post 10/14/25
         "bundle_block_index": 1,  # Index in bundleEvaluationBlockNumbers array
     },
     {
         "chain_id": 42161,
         "name": "Arbitrum",
-        "explorer_api_url": "https://api.arbiscan.io/api",
+        # "explorer_api_url": "https://api.arbiscan.io/api",
+        "explorer_api_url": "https://api.etherscan.io/v2/api?chainid=42161", # etherscan v2 migration 10/14/25
         "rpc_url": os.getenv("ARB_RPC"),
-        "api_key": os.getenv("ARB_SCAN_KEY"),
+        "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("ARB_SPOKE_POOL_ADDRESS"),
         # "start_block": 311048309,  # Post breaking Relayer changes
-        "start_block": 333537560, # post 5/5/25 capital pull
+        # "start_block": 333537560, # post 5/5/25 capital pull 
+        "start_block": 388856137, # post 10/14/25
         "bundle_block_index": 4,  # Index in bundleEvaluationBlockNumbers array
     },
     # {

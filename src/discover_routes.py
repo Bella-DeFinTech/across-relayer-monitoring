@@ -67,7 +67,16 @@ def get_fill_routes() -> List[Dict[str, Any]]:
         logger.info(f"Scanning {destination_chain['name']} for fill routes starting from start_block: {start_block} ...")
 
         # Get transactions from block explorer API
-        url = f"{destination_chain['explorer_api_url']}?module=account&action=txlist&address={RELAYER_ADDRESS}&startblock={start_block}&endblock=999999999&sort=desc&apikey={destination_chain['api_key']}"
+        url = (
+            f"{destination_chain['explorer_api_url']}"
+            f"&module=account"
+            f"&action=txlist"
+            f"&address={RELAYER_ADDRESS}"
+            f"&startblock={start_block}"
+            f"&endblock=999999999"
+            f"&sort=desc"
+            f"&apikey={destination_chain['api_key']}"
+        )
 
         try:
             response = requests.get(url)
@@ -77,6 +86,7 @@ def get_fill_routes() -> List[Dict[str, Any]]:
                 logger.error(
                     f"Error fetching data for {destination_chain['name']}: {data['message']}"
                 )
+                logger.error(data)
                 continue
 
             # Filter for fillRelay transactions
