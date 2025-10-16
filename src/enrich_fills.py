@@ -116,6 +116,12 @@ def get_unenriched_fills() -> List[Dict]:
 def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
     """
     Find FundsDeposited events matching the given deposit IDs across all chains.
+    
+    Uses deposit ID batching and block chunking with automatic fallback:
+    - Deposit IDs are batched into configurable groups to avoid "exceed max topics" errors
+    - Block ranges are chunked with hybrid approach:
+      1. First tries create_filter() with large chunks (fast)
+      2. If "filter not found" error, retries with get_logs() + 5000-block chunks (reliable)
 
     Args:
         deposit_ids: List of deposit IDs to search for
@@ -136,6 +142,19 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
     int_deposit_ids = [int(deposit_id) for deposit_id in deposit_ids]
 
     all_events = []
+
+    # Batch deposit IDs to avoid exceeding topic limits
+    # RPC providers have varying limits on topic filters (typically 100-1000)
+    # Adjust this value based on your provider's limits
+    DEPOSIT_ID_BATCH_SIZE = 1000
+    
+    # Split deposit IDs into batches
+    deposit_id_batches = [
+        int_deposit_ids[i:i + DEPOSIT_ID_BATCH_SIZE]
+        for i in range(0, len(int_deposit_ids), DEPOSIT_ID_BATCH_SIZE)
+    ]
+    
+    logger.info(f"Split {len(int_deposit_ids)} deposit IDs into {len(deposit_id_batches)} batches")
 
     # Query each chain for deposit events
     for chain in CHAINS:
@@ -159,18 +178,110 @@ def get_deposit_events(deposit_ids: List[str]) -> Dict[str, Dict]:
 
             contract = contracts[chain_id]
 
+            # Get current block number for this chain
+            try:
+                current_block = contract.w3.eth.block_number
+            except Exception as e:
+                logger.error(f"Error getting current block for {chain_name}: {str(e)}")
+                continue
+
             logger.info(
-                f"Searching for deposit events on {chain_name} from block {start_block}"
+                f"Searching for deposit events on {chain_name} from block {start_block} to {current_block}"
             )
 
+            # Block chunking with very large size (effectively no chunking for most cases)
+            BLOCK_CHUNK_SIZE = 10000000  # 10 million blocks: otherwise ` ERROR - Error getting events from Arbitrum batch 1 blocks 332537560-342537559: {'code': -32000, 'message': 'filter not found'}
+            chain_events = []
+            
             try:
-                event_filter = contract.events.FundsDeposited.create_filter(
-                    from_block=start_block,
-                    argument_filters={"depositId": int_deposit_ids},
-                )
-                events = event_filter.get_all_entries()
-                all_events.extend(events)
-                logger.info(f"Found {len(events)} events on {chain_name}")
+                # Process each batch of deposit IDs
+                for batch_idx, deposit_id_batch in enumerate(deposit_id_batches, 1):
+                    logger.info(
+                        f"Processing deposit ID batch {batch_idx}/{len(deposit_id_batches)} "
+                        f"({len(deposit_id_batch)} IDs) on {chain_name}"
+                    )
+                    
+                    current_from_block = start_block
+                    
+                    # Query through block ranges in chunks
+                    while current_from_block <= current_block:
+                        current_to_block = min(current_from_block + BLOCK_CHUNK_SIZE - 1, current_block)
+                        
+                        logger.info(
+                            f"Querying {chain_name} batch {batch_idx} blocks {current_from_block} to {current_to_block}"
+                        )
+                        
+                        try:
+                            # Try create_filter first (faster for large ranges)
+                            event_filter = contract.events.FundsDeposited.create_filter(
+                                from_block=current_from_block,
+                                to_block=current_to_block,
+                                argument_filters={"depositId": deposit_id_batch},
+                            )
+                            chunk_events = event_filter.get_all_entries()
+                            chain_events.extend(chunk_events)
+                            
+                            if chunk_events:
+                                logger.info(f"Found {len(chunk_events)} events in this chunk")
+                            
+                        except Exception as e:
+                            error_msg = str(e)
+                            
+                            # Check if it's a "filter not found" error - if so, retry with get_logs
+                            if "filter not found" in error_msg or "-32000" in error_msg:
+                                logger.warning(
+                                    f"Filter expired for {chain_name} batch {batch_idx} "
+                                    f"blocks {current_from_block}-{current_to_block}. "
+                                    f"Retrying with get_logs() and smaller chunks..."
+                                )
+                                
+                                # Retry with get_logs using smaller 5000-block chunks
+                                FALLBACK_CHUNK_SIZE = 10000
+                                fallback_events = []
+                                fallback_start = current_from_block
+                                
+                                while fallback_start <= current_to_block:
+                                    fallback_end = min(fallback_start + FALLBACK_CHUNK_SIZE - 1, current_to_block)
+                                    
+                                    try:
+                                        logger.info(
+                                            f"Fallback query {chain_name} batch {batch_idx} "
+                                            f"blocks {fallback_start} to {fallback_end}"
+                                        )
+                                        
+                                        small_chunk_events = contract.events.FundsDeposited.get_logs(
+                                            from_block=fallback_start,
+                                            to_block=fallback_end,
+                                            argument_filters={"depositId": deposit_id_batch}
+                                        )
+                                        fallback_events.extend(small_chunk_events)
+                                        
+                                    except Exception as fallback_error:
+                                        logger.error(
+                                            f"Fallback query failed for {chain_name} batch {batch_idx} "
+                                            f"blocks {fallback_start}-{fallback_end}: {str(fallback_error)}"
+                                        )
+                                    
+                                    fallback_start = fallback_end + 1
+                                
+                                chain_events.extend(fallback_events)
+                                if fallback_events:
+                                    logger.info(
+                                        f"Found {len(fallback_events)} events via fallback method "
+                                        f"for blocks {current_from_block}-{current_to_block}"
+                                    )
+                            else:
+                                # Different error - just log it
+                                logger.error(
+                                    f"Error getting events from {chain_name} batch {batch_idx} "
+                                    f"blocks {current_from_block}-{current_to_block}: {error_msg}"
+                                )
+                        
+                        # Move to next block chunk
+                        current_from_block = current_to_block + 1
+                
+                all_events.extend(chain_events)
+                logger.info(f"Found {len(chain_events)} total events on {chain_name}")
 
             except Exception as e:
                 logger.error(f"Error getting events from {chain_name}: {str(e)}")

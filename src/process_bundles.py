@@ -142,6 +142,8 @@ def get_spoke_bundle_events(
     2. Creates an event filter starting from the specified block
     3. Filters events to only those matching the provided relayer roots
     4. Returns all matching events with their full data
+    
+    Uses batching to avoid "exceed max topics" errors when filtering by many relayer roots.
 
     The events contain:
     - rootBundleId: The ID of the bundle
@@ -164,12 +166,33 @@ def get_spoke_bundle_events(
 
     try:
         contract = contracts[chain_id]
-        events = contract.events.RelayedRootBundle.create_filter(
-            from_block=start_block,
-            argument_filters={"relayerRefundRoot": relayer_roots},
-        ).get_all_entries()
-
-        return events
+        
+        # Batch relayer roots to avoid "exceed max topics" error
+        # RPC providers typically limit topic filters to 100-1000 values
+        BATCH_SIZE = 1000
+        all_events = []
+        
+        # Split relayer roots into batches
+        for i in range(0, len(relayer_roots), BATCH_SIZE):
+            batch = relayer_roots[i:i + BATCH_SIZE]
+            
+            try:
+                events = contract.events.RelayedRootBundle.create_filter(
+                    from_block=start_block,
+                    argument_filters={"relayerRefundRoot": batch},
+                ).get_all_entries()
+                
+                all_events.extend(events)
+                
+            except Exception as e:
+                logger.error(
+                    f"Error getting spoke events for chain {chain_id} "
+                    f"(batch {i//BATCH_SIZE + 1}): {str(e)}"
+                )
+        
+        logger.info(f"Found {len(all_events)} spoke events for chain {chain_id}")
+        return all_events
+        
     except Exception as e:
         logger.error(f"Error getting spoke events for chain {chain_id}: {str(e)}")
         return []

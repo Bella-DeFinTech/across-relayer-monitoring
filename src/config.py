@@ -62,9 +62,8 @@ CHAINS = [
         "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("ETH_SPOKE_POOL_ADDRESS"),
         # "start_block": 21950406,  # Post breaking Relayer changes
-        # "start_block": 22418181, # post 5/5/25 capital pull
-        "start_block": 23565787, # post 10/14/25
-
+        "start_block": 22418181, # post 5/5/25 capital pull
+        # "start_block": 23565787, # post 10/14/25
         "bundle_block_index": 0,  # Index in bundleEvaluationBlockNumbers array
     },
     {
@@ -76,8 +75,8 @@ CHAINS = [
         "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("OP_SPOKE_POOL_ADDRESS"),
         # "start_block": 132848581,  # Post breaking Relayer changes
-        # "start_block": 135387300, # post 5/5/25 capital pull
-        "start_block": 142292751, # post 10/14/25
+        "start_block": 135387300, # post 5/5/25 capital pull
+        # "start_block": 142292751, # post 10/14/25
         "bundle_block_index": 1,  # Index in bundleEvaluationBlockNumbers array
     },
     {
@@ -89,8 +88,8 @@ CHAINS = [
         "api_key": os.getenv("ETH_SCAN_KEY"),  # v2 API uses unified key for all chains
         "spoke_pool_address": os.getenv("ARB_SPOKE_POOL_ADDRESS"),
         # "start_block": 311048309,  # Post breaking Relayer changes
-        # "start_block": 333537560, # post 5/5/25 capital pull 
-        "start_block": 388856137, # post 10/14/25
+        "start_block": 333537560, # post 5/5/25 capital pull 
+        # "start_block": 388856137, # post 10/14/25
         "bundle_block_index": 4,  # Index in bundleEvaluationBlockNumbers array
     },
     # {

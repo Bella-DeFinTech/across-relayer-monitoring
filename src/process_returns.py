@@ -67,8 +67,12 @@ def get_executed_relayer_refund_root_events(contract: Contract, start_block: int
     all_events = []
     current_start = start_block
     
+    # Chunk size for block range pagination
+    # https://docs.chainstack.com/docs/understanding-eth-getlogs-limitations
+    BLOCK_CHUNK_SIZE = 5000
+    
     while current_start < current_block:
-        current_end = min(current_start + 499, current_block)
+        current_end = min(current_start + BLOCK_CHUNK_SIZE - 1, current_block)
         logger.info(f"Fetching blocks {current_start} to {current_end} for chain {chain_id}")
         
         chunk_events = contract.events.ExecutedRelayerRefundRoot.get_logs(

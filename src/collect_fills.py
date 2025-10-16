@@ -74,7 +74,7 @@ def get_fill_transactions(chain: Dict, start_block: int) -> List[Dict]:
 
     url = (
         f"{chain['explorer_api_url']}"
-        f"?module=account"
+        f"&module=account"
         f"&action=txlist"
         f"&address={RELAYER_ADDRESS}"
         f"&startblock={start_block + 1}"
